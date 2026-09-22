@@ -1,0 +1,21 @@
+# ===== 智能流量安全检测与分析系统 - 后端依赖 =====
+# Web 框架与校验
+fastapi>=0.111,<1.0
+uvicorn[standard]>=0.30
+pydantic>=2.7,<3.0
+pydantic-settings>=2.3
+# 存储
+SQLAlchemy>=2.0.30
+psycopg2-binary>=2.9.9 ; sys_platform != "win32"
+# 采集 / 检测
+numpy>=1.26
+scapy>=2.6.0            # 用户态兜底采集（无 eBPF 权限时）
+scikit-learn>=1.4       # Isolation Forest 补充检测（缺失时自动降级为纯统计模型）
+# 开源规则库
+pyyaml>=6.0             # Sigma YAML 规则解析（缺失时 Sigma 来源自动跳过，其它来源不受影响）
+# 可选：RE2 多模式预筛（生产推荐；安装脚本会尝试安装，失败自动回落 python 后端）
+# google-re2>=1.0
+# 告警与外呼
+httpx>=0.27             # 告警通道 + AI 研判（DeepSeek/OpenAI 兼容接口）
+# 测试
+pytest>=8.2
