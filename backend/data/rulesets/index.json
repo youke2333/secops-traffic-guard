@@ -1,0 +1,28 @@
+{
+ "schema_version": "1.0",
+ "updated_at": "2026-10-19",
+ "packs": [
+  {
+   "name": "intrusion",
+   "file": "intrusion_rules.json",
+   "count": 742,
+   "match_engine": "http_text + flow",
+   "drop_in": "已接入（HTTP；流级后续批次）"
+  },
+  {
+   "name": "triage",
+   "file": "triage_rules.json",
+   "count": 300,
+   "match_engine": "context",
+   "drop_in": "已实现（默认关闭）"
+  },
+  {
+   "name": "malware",
+   "file": "malware_signatures.json",
+   "count": 329,
+   "match_engine": "file_scan",
+   "drop_in": "后续批次（默认关闭）"
+  }
+ ],
+ "total": 1371
+}

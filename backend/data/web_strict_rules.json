@@ -1,0 +1,171 @@
+{
+  "version": "2026.10-strict",
+  "description": "高置信度直达规则包：只看攻击载荷本身，不限定业务路径与产品，用于自动封禁判定（direct_alert）。规则命中即为明确的攻击意图，正常业务参数不会出现这些形状。",
+  "field_help": {
+    "rules[].direct_alert": "标记为直达命中，满足自动处置门槛时可直接封禁来源 IP",
+    "rules[].match_targets": "匹配字段：path | query | body | header | cookie | user_agent | referer | filename | any"
+  },
+  "rules": [
+    {
+      "id": "ST-SQLI-001",
+      "category": "sql_injection",
+      "title": "SQL 注入：联合查询读取数据（UNION SELECT）",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "tier": "core",
+      "rule_source": "strict",
+      "direct_alert": true,
+      "match_targets": ["query", "body", "path", "header", "cookie"],
+      "patterns": [
+        "\\bunion\\b\\s+(?:all\\s+)?\\bselect\\b",
+        "\\binformation_schema\\b",
+        "\\b(?:sleep|benchmark|pg_sleep|waitfor\\s+delay)\\s*\\("
+      ],
+      "remediation": "数据库访问改为参数化查询/预编译语句，对参数做类型与白名单校验，数据库账号最小权限。",
+      "references": ["https://owasp.org/Top10/A03_2021-Injection/"],
+      "examples": ["?id=1' UNION SELECT user,password FROM users-- -"]
+    },
+    {
+      "id": "ST-CMD-001",
+      "category": "command_injection",
+      "title": "命令注入：拼接系统命令执行",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "tier": "core",
+      "rule_source": "strict",
+      "direct_alert": true,
+      "match_targets": ["query", "body", "path", "header", "cookie"],
+      "patterns": [
+        "[;&|]{1,2}\\s*(?:whoami|id|uname|cat\\s+/etc/passwd|ipconfig|net\\s+user)\\b",
+        "\\$\\(\\s*(?:whoami|id|uname|cat)\\b",
+        "`\\s*(?:whoami|id|uname|cat)\\b",
+        "\\b(?:cmd(?:\\.exe)?\\s*/c|powershell(?:\\.exe)?\\s+-c)\\b"
+      ],
+      "remediation": "禁止把用户输入拼接进 shell 命令；改用参数化 API（如 subprocess 数组形式），必要时做严格白名单校验。",
+      "references": ["https://owasp.org/Top10/A03_2021-Injection/"],
+      "examples": ["?ip=127.0.0.1; whoami"]
+    },
+    {
+      "id": "ST-TRAVERSAL-001",
+      "category": "path_traversal",
+      "title": "路径穿越：读取系统敏感文件",
+      "severity": "high",
+      "cvss": 7.5,
+      "confidence": "high",
+      "tier": "core",
+      "rule_source": "strict",
+      "direct_alert": true,
+      "match_targets": ["query", "body", "path", "header", "cookie"],
+      "patterns": [
+        "(?:\\.\\./){2,}(?:etc/passwd|etc/shadow|proc/self)",
+        "(?:\\.\\.\\\\){2,}(?:windows\\\\win\\.ini|windows\\\\system32)",
+        "%2e%2e(?:%2f|/)(?:%2e%2e(?:%2f|/))+(?:etc|windows)"
+      ],
+      "remediation": "对外文件名使用白名单映射或 ID，禁止把用户输入直接拼接为文件路径；必要时对路径做归一化并校验前缀。",
+      "references": ["https://owasp.org/www-community/attacks/Path_Traversal"],
+      "examples": ["?page=../../../../etc/passwd"]
+    },
+    {
+      "id": "ST-WEBSHELL-001",
+      "category": "webshell",
+      "title": "WebShell：写入或调用一句话后门",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "tier": "core",
+      "rule_source": "strict",
+      "direct_alert": true,
+      "match_targets": ["query", "body", "header", "cookie"],
+      "patterns": [
+        "\\beval\\s*\\(\\s*\\$_(?:post|get|request|cookie)",
+        "\\bassert\\s*\\(\\s*\\$_(?:post|get|request)",
+        "\\bsystem\\s*\\(\\s*\\$_(?:post|get|request)",
+        "\\bpassthru\\s*\\(\\s*\\$_(?:post|get|request)",
+        "\\bRuntime\\.getRuntime\\(\\)\\.exec"
+      ],
+      "remediation": "上传目录禁止脚本执行；对上传内容做类型与内容双重校验；发现后立即隔离主机、删除后门并轮换凭据。",
+      "references": ["https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload"],
+      "examples": ["<?php @eval($_POST['cmd']);?>"]
+    },
+    {
+      "id": "ST-UPLOAD-001",
+      "category": "file_upload",
+      "title": "文件上传：写入可执行脚本",
+      "severity": "critical",
+      "cvss": 9.1,
+      "confidence": "high",
+      "tier": "core",
+      "rule_source": "strict",
+      "direct_alert": true,
+      "match_targets": ["filename", "body"],
+      "patterns": [
+        "filename\\s*=\\s*\"[^\"]+\\.(?:php[0-9s]?|phtml|jsp|jspx|asp|aspx|ashx|cer)\"",
+        "\\.(?:php[0-9s]?|phtml|jsp|jspx)\\s*$"
+      ],
+      "remediation": "上传仅允许白名单扩展名并重命名存储；上传目录关闭脚本解析，文件放在站点根之外。",
+      "references": ["https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload"],
+      "examples": ["filename=\"shell.php\""]
+    },
+    {
+      "id": "ST-SSRF-001",
+      "category": "ssrf",
+      "title": "SSRF：请求内网地址或云元数据",
+      "severity": "high",
+      "cvss": 8.6,
+      "confidence": "high",
+      "tier": "core",
+      "rule_source": "strict",
+      "direct_alert": true,
+      "match_targets": ["query", "body", "header"],
+      "patterns": [
+        "(?:url|uri|target|dest|redirect|next|image|fetch)\\s*=\\s*https?://(?:127\\.0\\.0\\.1|localhost|0\\.0\\.0\\.0|169\\.254\\.169\\.254|\\[::1\\])",
+        "https?://169\\.254\\.169\\.254/(?:latest|metadata)",
+        "\\bfile://(?:/etc/passwd|/proc/self)"
+      ],
+      "remediation": "对外请求做目标白名单与 DNS 重新解析校验，禁止访问回环、内网与云元数据地址；出网走统一代理。",
+      "references": ["https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/"],
+      "examples": ["?url=http://169.254.169.254/latest/meta-data/"]
+    },
+    {
+      "id": "ST-XXE-001",
+      "category": "xxe",
+      "title": "XXE：外部实体读取本地文件",
+      "severity": "high",
+      "cvss": 8.2,
+      "confidence": "high",
+      "tier": "core",
+      "rule_source": "strict",
+      "direct_alert": true,
+      "match_targets": ["body"],
+      "patterns": [
+        "<!entity\\s+\\w+\\s+system\\s+[\"'](?:file|php|expect)://",
+        "<!doctype[^>]+\\[\\s*<!entity"
+      ],
+      "remediation": "禁用 XML 外部实体解析（Java: disallow-doctype-decl；PHP: libxml_disable_entity_loader），并限制可解析的 DTD。",
+      "references": ["https://owasp.org/www-community/vulnerabilities/XML_External_Entity_%28XXE%29_Processing"],
+      "examples": ["<?xml version=\"1.0\"?><!DOCTYPE x [<!ENTITY e SYSTEM \"file:///etc/passwd\">]>"]
+    },
+    {
+      "id": "ST-SSTI-001",
+      "category": "ssti",
+      "title": "模板注入：表达式被执行",
+      "severity": "critical",
+      "cvss": 9.1,
+      "confidence": "high",
+      "tier": "core",
+      "rule_source": "strict",
+      "direct_alert": true,
+      "match_targets": ["query", "body"],
+      "patterns": [
+        "\\{\\{\\s*[\\d'\"].{0,40}(?:\\*|\\+).{0,20}\\}\\}",
+        "\\$\\{\\s*[\\d'\"].{0,40}(?:\\*|\\+).{0,20}\\}",
+        "<%=\\s*.{0,40}(?:\\*|\\+)"
+      ],
+      "remediation": "模板与数据分离，禁止把用户输入当作模板；使用沙箱模板引擎并限制可访问对象。",
+      "references": ["https://owasp.org/www-project-top-ten/"],
+      "examples": ["?name={{7*7}}"]
+    }
+  ]
+}

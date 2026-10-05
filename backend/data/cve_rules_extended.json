@@ -1,0 +1,115 @@
+{
+  "version": "2025.02",
+  "updated_at": "2025-02-20",
+  "description": "扩展 CVE 知识库：由开源签名库（vedas-signatures / nuclei-templates 的 CVE 描述）转换而来，加载时与内置 cve_rules.json 合并（同一 CVE 编号以本文件为准）。CVE 规则永不设置直达标记（direct_alert=false）：版本号匹配存在不确定性（banner 解析误差、发行版回移植补丁），必须走聚合评分或人工研判。",
+  "source": "converted from open signature repositories; 每条规则均保留 references 便于核实",
+  "field_help": {
+    "product_regex": "在产品名（banner 解析结果）上做不区分大小写正则匹配",
+    "service_regex": "无产品信息时退化到服务名匹配",
+    "ports": "限定端口（留空表示不限）",
+    "version_lt/le/gt/ge/eq": "版本比较约束",
+    "version_between": "版本区间 [起, 止]",
+    "assume_risk_if_unknown": "版本无法识别时是否保守判定为存在风险（默认 false，即版本未知不猜漏洞）",
+    "fixed_version": "最低修复版本",
+    "recommendation": "可直接执行的修复建议"
+  },
+  "rules": [
+    {
+      "cve": "CVE-2014-0160",
+      "title": "OpenSSL Heartbleed 心跳扩展越界读取导致内存泄漏",
+      "product_regex": "openssl",
+      "version_lt": "1.0.1g",
+      "severity": "critical",
+      "cvss": 7.5,
+      "fixed_version": "1.0.1g",
+      "recommendation": "升级 OpenSSL 至 1.0.1g 及以上（或对应发行版安全补丁）；升级后立即轮换服务器私钥与所有会话凭证，因为内存中的密钥可能已泄露。",
+      "evidence_template": "识别到 OpenSSL {version}（端口 {port}），低于修复版本 1.0.1g。",
+      "references": ["https://nvd.nist.gov/vuln/detail/CVE-2014-0160", "https://heartbleed.com/"]
+    },
+    {
+      "cve": "CVE-2017-5638",
+      "title": "Apache Struts2 Jakarta Multipart 解析器远程代码执行（S2-045/S2-046）",
+      "product_regex": "struts",
+      "version_lt": "2.5.10.1",
+      "severity": "critical",
+      "cvss": 10.0,
+      "fixed_version": "2.5.10.1",
+      "recommendation": "升级 Struts 至 2.5.10.1 / 2.3.32 及以上；无法立即升级时移除 Jakarta Multipart 解析器并过滤 Content-Type 异常请求。",
+      "evidence_template": "识别到 Apache Struts {version}（端口 {port}），低于修复版本 2.5.10.1。",
+      "references": ["https://nvd.nist.gov/vuln/detail/CVE-2017-5638"]
+    },
+    {
+      "cve": "CVE-2018-15473",
+      "title": "OpenSSH 用户名枚举（认证响应时序差异）",
+      "product_regex": "openssh",
+      "version_lt": "7.7",
+      "severity": "medium",
+      "cvss": 5.3,
+      "fixed_version": "7.7",
+      "recommendation": "升级 OpenSSH 至 7.7 及以上；对外暴露的 22 端口建议限制来源网段并启用失败登录限速（fail2ban / sshd MaxStartups）。",
+      "evidence_template": "识别到 OpenSSH {version}（端口 {port}），低于修复版本 7.7。",
+      "references": ["https://nvd.nist.gov/vuln/detail/CVE-2018-15473"]
+    },
+    {
+      "cve": "CVE-2019-0211",
+      "title": "Apache httpd 优雅重启导致本地提权（2.4.17 ~ 2.4.38）",
+      "product_regex": "apache",
+      "version_between": ["2.4.17", "2.4.38"],
+      "severity": "high",
+      "cvss": 7.8,
+      "fixed_version": "2.4.39",
+      "recommendation": "升级 Apache httpd 至 2.4.39 及以上；确认以低权限用户（如 www-data）运行，并收紧对 ScoreBoard 文件所在目录的写权限。",
+      "evidence_template": "识别到 Apache httpd {version}（端口 {port}），落在受影响区间 2.4.17 - 2.4.38。",
+      "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-0211"]
+    },
+    {
+      "cve": "CVE-2019-11043",
+      "title": "PHP-FPM 下 nginx 配置缺陷导致远程代码执行",
+      "product_regex": "php",
+      "version_lt": "7.3.11",
+      "severity": "critical",
+      "cvss": 9.8,
+      "fixed_version": "7.3.11",
+      "recommendation": "升级 PHP 至 7.3.11 / 7.2.24 / 7.1.33 及以上；在 nginx 中显式设置 fastcgi_split_path_info 与 try_files，避免 PATH_INFO 被可控构造。",
+      "evidence_template": "识别到 PHP {version}（端口 {port}），低于修复版本 7.3.11。",
+      "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-11043"]
+    },
+    {
+      "cve": "CVE-2022-26134",
+      "title": "Atlassian Confluence OGNL 注入导致未授权远程代码执行",
+      "product_regex": "confluence",
+      "version_lt": "7.18.1",
+      "severity": "critical",
+      "cvss": 9.8,
+      "fixed_version": "7.18.1",
+      "recommendation": "升级 Confluence 至 7.4.17 / 7.13.7 / 7.14.3 / 7.15.2 / 7.16.4 / 7.17.4 / 7.18.1；无法升级时立即下线公网暴露面，并检查是否已被植入 WebShell。",
+      "evidence_template": "识别到 Atlassian Confluence {version}（端口 {port}），低于修复版本 7.18.1。",
+      "references": ["https://nvd.nist.gov/vuln/detail/CVE-2022-26134"]
+    },
+    {
+      "cve": "CVE-2023-34362",
+      "title": "Progress MOVEit Transfer SQL 注入导致文件读取与远程代码执行",
+      "product_regex": "moveit",
+      "version_lt": "2023.0.1",
+      "severity": "critical",
+      "cvss": 9.8,
+      "fixed_version": "2023.0.1",
+      "recommendation": "升级 MOVEit Transfer 至 2023.0.1 / 2022.1.5 / 2022.0.4 / 2021.1.4 / 2021.0.6 及以上，并同步更新 MOVEit Transfer 数据库脚本；检查上传目录是否存在 WebShell。",
+      "evidence_template": "识别到 Progress MOVEit Transfer {version}（端口 {port}），低于修复版本 2023.0.1。",
+      "references": ["https://nvd.nist.gov/vuln/detail/CVE-2023-34362"]
+    },
+    {
+      "cve": "CVE-2020-1472",
+      "title": "Netlogon 权限提升（Zerologon）",
+      "service_regex": "netlogon",
+      "ports": [135, 445, 49668],
+      "severity": "critical",
+      "cvss": 10.0,
+      "fixed_version": "2020-08 起累积更新",
+      "recommendation": "为域控打上 2020 年 8 月及之后的累积更新；启用强制模式（Enforcement mode）并排查是否已出现 Netlogon 相关的异常认证。",
+      "evidence_template": "在端口 {port} 发现 {product} 服务，疑似域控暴露面（Zerologon 影响未打补丁的域控）。",
+      "assume_risk_if_unknown": false,
+      "references": ["https://nvd.nist.gov/vuln/detail/CVE-2020-1472"]
+    }
+  ]
+}

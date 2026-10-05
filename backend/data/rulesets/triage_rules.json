@@ -1,0 +1,7735 @@
+{
+ "schema_version": "1.0",
+ "pack": "triage",
+ "name": "研判规则库",
+ "version": "2026.10.1",
+ "updated_at": "2026-10-19",
+ "description": "告警上下文研判规则：对检测层产出的命中做降噪（benign）、提级（escalate）、定性（confirmed）与降级（suspicious）。输入不是请求本身，而是告警及其历史、资产、情报上下文。",
+ "field_help": {
+  "stage": "ingest=入库前；aggregate=聚合判定；respond=封禁前；report=报告生成",
+  "verdict": "benign=误报；suspicious=存疑/降级；escalate=提级；confirmed=确认",
+  "action": "suppress_alert/downgrade/escalate/confirm",
+  "when.all": "全部条件满足才触发；条件为 {field, op, value}",
+  "score_delta": "对风险分的增减，正数提级、负数降噪",
+  "priority": "同一告警多条规则命中时的执行优先级（大者优先）",
+  "ttl_sec": "结论有效期，过期后重新研判"
+ },
+ "ops": [
+  "==",
+  "!=",
+  ">",
+  ">=",
+  "<",
+  "<=",
+  "in",
+  "not_in",
+  "contains",
+  "regex",
+  "exists",
+  "not_exists"
+ ],
+ "context_fields": {
+  "rule": [
+   "id",
+   "category",
+   "severity",
+   "confidence",
+   "count",
+   "tags",
+   "fp_rate_30d",
+   "target"
+  ],
+  "http": [
+   "method",
+   "path",
+   "query",
+   "status",
+   "ua",
+   "referer",
+   "content_type",
+   "body",
+   "response_body",
+   "response_header",
+   "body_len",
+   "response_len",
+   "response_len_deviation",
+   "response_time_ms",
+   "url_len",
+   "param_count",
+   "filename_ext",
+   "duplicate_params"
+  ],
+  "src": [
+   "ip",
+   "port",
+   "is_internal",
+   "asn_type",
+   "geo",
+   "user_role",
+   "authenticated",
+   "first_seen_days",
+   "last_seen_days",
+   "device_fingerprint_new"
+  ],
+  "dst": [
+   "ip",
+   "port",
+   "service",
+   "is_internal"
+  ],
+  "asset": [
+   "env",
+   "criticality",
+   "exposure",
+   "data_class",
+   "role",
+   "tags",
+   "owner",
+   "known_vuln",
+   "patch_lag_days",
+   "age_days",
+   "eol",
+   "os_eol",
+   "managed",
+   "compliance",
+   "segment",
+   "region",
+   "version_match_cve",
+   "change_ticket"
+  ],
+  "history": [
+   "distinct_categories_300s",
+   "critical_count_300s",
+   "scanner_600s",
+   "recon_success_600s",
+   "recon_404_count_300s",
+   "fail_count_300s",
+   "fail_count_600s",
+   "same_rule_sec",
+   "same_rule_count_60s",
+   "same_rule_count_300s",
+   "same_payload_count_300s",
+   "same_payload_sources_300s",
+   "same_payload_sources_3600s",
+   "distinct_categories_same_ua_600s",
+   "interval_stddev",
+   "rps",
+   "hits_24h",
+   "block_count_30d",
+   "blocked_before",
+   "hits_after_block",
+   "success_indicator",
+   "corroborating_signals",
+   "manual_fp",
+   "download_count_300s",
+   "union_requests_300s",
+   "sequential_id_count_300s",
+   "otp_attempts_60s",
+   "ua_rotation_300s",
+   "per_source_rps",
+   "asset_requests",
+   "crawl_depth",
+   "status_404_ratio",
+   "status_5xx_ratio",
+   "method_put_delete_ratio",
+   "geo_count_300s",
+   "geo_concentration",
+   "asn_concentration",
+   "days_active",
+   "interval_trend",
+   "interval_median_stable",
+   "source_share",
+   "session_accounts",
+   "account_sources",
+   "distinct_accounts_300s",
+   "distinct_passwords_300s",
+   "paired_diff_ratio",
+   "union_column_match",
+   "payload_variants_300s",
+   "same_payload_new_ip",
+   "same_payload_new_port",
+   "owner_mismatch",
+   "c2_dst_hosts_3600s",
+   "asset_group_hits",
+   "c2_3600s",
+   "htaccess_upload_600s",
+   "php_upload_600s",
+   "upload_script_600s",
+   "upload_script_3600s",
+   "last_login_minutes",
+   "geo_conflict"
+  ],
+  "time": [
+   "hour",
+   "is_workhour",
+   "is_weekend",
+   "is_holiday",
+   "is_quarter_end",
+   "in_backup_window",
+   "in_maintenance_window",
+   "in_business_peak",
+   "in_campaign_window",
+   "in_change_freeze",
+   "in_dr_drill",
+   "in_authorized_window"
+  ],
+  "intel": [
+   "oob_hit",
+   "tor_exit",
+   "reputation",
+   "threat_type"
+  ],
+  "flow": [
+   "dst_port",
+   "avg_payload_len",
+   "interval_stddev",
+   "session_duration",
+   "ingress_if",
+   "fragmented",
+   "duplicate_of"
+  ],
+  "tls": [
+   "ja3",
+   "sni",
+   "present",
+   "tls_client_cert"
+  ],
+  "dns": [
+   "qtype",
+   "qname",
+   "qps",
+   "qname_entropy",
+   "qname_len",
+   "rcode"
+  ],
+  "host": [
+   "cpu_percent"
+  ],
+  "process": [
+   "cmdline",
+   "name"
+  ],
+  "file": [
+   "created_name"
+  ]
+ },
+ "stats": {
+  "total": 300,
+  "by_verdict": {
+   "benign": 109,
+   "confirmed": 56,
+   "escalate": 116,
+   "suspicious": 19
+  },
+  "by_stage": {
+   "aggregate": 300
+  }
+ },
+ "rules": [
+  {
+   "id": "TRI-0001",
+   "name": "健康检查探针（kube-probe）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "kube-probe"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "K8s 存活探针，非攻击",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0002",
+   "name": "健康检查探针（ELB）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "ELB-HealthChecker"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "负载均衡健康检查",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0003",
+   "name": "健康检查探针（GCP）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "GoogleHC"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "GCP 健康检查",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0004",
+   "name": "健康检查探针（Azure）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "Azure-HealthProbe"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "Azure 健康检查",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0005",
+   "name": "监控探针（Zabbix）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "Zabbix"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "监控系统主动探测",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0006",
+   "name": "监控探针（Nagios）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "check_http"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "Nagios 可用性检查",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0007",
+   "name": "监控探针（Prometheus）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "Prometheus"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "指标抓取",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0008",
+   "name": "监控探针（Datadog）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "Datadog"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "APM 探针",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0009",
+   "name": "监控探针（UptimeRobot）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "UptimeRobot"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "外部可用性监控",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0010",
+   "name": "监控探针（Pingdom）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "Pingdom"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "外部可用性监控",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0011",
+   "name": "健康检查路径",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "in",
+      "value": "/health,/healthz,/readyz,/livez,/ping,/status"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "标准健康检查端点",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0012",
+   "name": "HEAD 方法探测",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.method",
+      "op": "==",
+      "value": "HEAD"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "HEAD 只取响应头，通常为监控或预检",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0013",
+   "name": "CORS 预检请求",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.method",
+      "op": "==",
+      "value": "OPTIONS"
+     },
+     {
+      "field": "http.header",
+      "op": "contains",
+      "value": "Access-Control-Request-Method"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "浏览器跨域预检",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0014",
+   "name": "静态资源请求",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "\\.(css|js|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|map)$"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "静态资源不含业务参数",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0015",
+   "name": "favicon 请求",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "==",
+      "value": "/favicon.ico"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "浏览器默认请求",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0016",
+   "name": "robots.txt 请求",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "==",
+      "value": "/robots.txt"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "爬虫协议文件",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0017",
+   "name": "sitemap 请求",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "in",
+      "value": "/sitemap.xml,/sitemap_index.xml"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "站点地图",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0018",
+   "name": "security.txt 请求",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/.well-known/security.txt"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "安全联系信息，属规范行为",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0019",
+   "name": "ACME 证书校验",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/.well-known/acme-challenge/"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "Let's Encrypt 域名校验",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0020",
+   "name": "站点归属校验文件",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "^/(google|baidu|bing|sogou)[0-9a-z]+\\.(html|txt)$"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "搜索引擎站长校验",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0021",
+   "name": "搜索引擎爬虫（Google）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "Googlebot"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "合法爬虫",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0022",
+   "name": "搜索引擎爬虫（Bing）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "bingbot"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "合法爬虫",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0023",
+   "name": "搜索引擎爬虫（Baidu）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "Baiduspider"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "合法爬虫",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0024",
+   "name": "社交平台预览抓取",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "regex",
+      "value": "(facebookexternalhit|Twitterbot|Slackbot|Discordbot)"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "链接预览抓取",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0025",
+   "name": "站点监控（微信/支付宝）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "regex",
+      "value": "(WeChat|Alipay)"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "平台回调或校验",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0026",
+   "name": "搜索词含 SQL 关键字",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "^/(search|sou|query)"
+     },
+     {
+      "field": "http.query",
+      "op": "regex",
+      "value": "(select|union|order by)"
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "sql_injection,sql_injection_blind"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "自然语言搜索词命中 SQL 关键词",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0027",
+   "name": "文档页面含注入关键词",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "^/(docs?|wiki|blog|kb|help|article)/"
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "sql_injection,sql_injection_blind,xss_reflected"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "技术文档本身包含攻击示例",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0028",
+   "name": "安全培训靶场流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "^/(labs?|vuln|training|ctf|demo)/"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "授权靶场内的攻击练习",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0029",
+   "name": "授权渗透测试标记",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.header",
+      "op": "contains",
+      "value": "X-Pentest-Token"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "带授权头的测试流量",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0030",
+   "name": "漏洞赏金授权来源",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.header",
+      "op": "contains",
+      "value": "X-Bugbounty-Id"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "SRC 授权测试",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0031",
+   "name": "传感器自身流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "detect_ignore_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "传感器/管理机自访问",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0032",
+   "name": "回环地址流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "127.0.0.0/8"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "本机内部调用",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0033",
+   "name": "组播/广播源",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "224.0.0.0/4,255.255.255.255"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "非单播源不构成攻击",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0034",
+   "name": "NAT 网关代理流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "==",
+      "value": "nat_gateway_ip"
+     },
+     {
+      "field": "dst.ip",
+      "op": "in",
+      "value": "protected_cidrs"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "源为 NAT 出口，真实客户端不可见",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0035",
+   "name": "备份任务拉取压缩包",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "\\.(zip|tar\\.gz|sql)$"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "backup_job_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "备份作业正常拉取",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0036",
+   "name": "CI Runner 拉取制品",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "gitlab-runner"
+     },
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/artifacts/"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "流水线正常下载",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0037",
+   "name": "CI 克隆版本库",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "^/[\\w.\\-]+/\\.git/"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "ci_runner_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "流水线拉取代码",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0038",
+   "name": "包管理器请求",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "regex",
+      "value": "(npm|pip|yarn|pnpm|Maven|Gradle|NuGet|Composer)"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "依赖下载",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0039",
+   "name": "系统更新请求",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "/(ubuntu|debian|centos|repodata|Packages)"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "系统补丁更新",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0040",
+   "name": "对象存储直传",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 443
+     },
+     {
+      "field": "http.header",
+      "op": "contains",
+      "value": "x-amz-content-sha256"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "S3 兼容接口签名上传",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0041",
+   "name": "支付平台回调",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "payment_provider_ips"
+     },
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/callback"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "支付回调",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0042",
+   "name": "Webhook 回调（带签名）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.header",
+      "op": "regex",
+      "value": "(X-Hub-Signature|Stripe-Signature|X-Signature)"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "带 HMAC 签名的合法回调",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0043",
+   "name": "OAuth 授权回调",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/oauth/callback"
+     },
+     {
+      "field": "http.query",
+      "op": "contains",
+      "value": "code="
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "OAuth 正常回调",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0044",
+   "name": "邮件验证链接",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.query",
+      "op": "regex",
+      "value": "(token|verify)="
+     },
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/verify"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "账号验证链接",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0045",
+   "name": "密码重置链接",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.query",
+      "op": "contains",
+      "value": "reset_token="
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "正常重置流程",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0046",
+   "name": "签名 URL 下载",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.query",
+      "op": "regex",
+      "value": "(X-Amz-Signature|Signature|Expires)="
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "预签名 URL 含编码字符",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0047",
+   "name": "文件名含 ../ 的正常下载",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.query",
+      "op": "regex",
+      "value": "filename=[^&]*\\.\\./"
+     },
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "path_traversal"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "用户文件名本身含点号",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0048",
+   "name": "上传接口的正常图片",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "/(upload|avatar|photo)"
+     },
+     {
+      "field": "http.content_type",
+      "op": "contains",
+      "value": "multipart/form-data"
+     },
+     {
+      "field": "http.filename_ext",
+      "op": "in",
+      "value": ".jpg,.jpeg,.png,.gif,.webp"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "扩展名与 MIME 均为图片",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0049",
+   "name": "上传接口的 Office 文档",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.filename_ext",
+      "op": "in",
+      "value": ".docx,.xlsx,.pptx,.doc,.xls,.ppt,.pdf"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "Office/PDF 正常业务文档",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0050",
+   "name": "富文本编辑器提交代码块",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "/(editor|content|article|post)"
+     },
+     {
+      "field": "http.body",
+      "op": "contains",
+      "value": "&lt;script"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "代码块中的转义标签",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0051",
+   "name": "管理后台的 HTML 编辑",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/admin/"
+     },
+     {
+      "field": "src.user_role",
+      "op": "==",
+      "value": "admin"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "管理员编辑页面内容",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0052",
+   "name": "SOAP 请求携带 DOCTYPE",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.content_type",
+      "op": "contains",
+      "value": "text/xml"
+     },
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/soap"
+     },
+     {
+      "field": "http.body",
+      "op": "contains",
+      "value": "<!DOCTYPE"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "部分 SOAP 框架默认带 DTD",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0053",
+   "name": "SAML 断言请求",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/saml"
+     },
+     {
+      "field": "http.body",
+      "op": "contains",
+      "value": "samlp:Response"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "SAML 单点登录",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0054",
+   "name": "Office 文档 XML 解析",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.filename_ext",
+      "op": "in",
+      "value": ".docx,.xlsx,.pptx"
+     },
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "xxe"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "OOXML 本质是 zip+XML",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0055",
+   "name": "SVG 图片上传",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.filename_ext",
+      "op": "==",
+      "value": ".svg"
+     },
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "upload"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "SVG 正常上传，需另行校验脚本",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0056",
+   "name": "PDF 内嵌 JS",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.filename_ext",
+      "op": "==",
+      "value": ".pdf"
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "xss_reflected,xxe"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "PDF 内嵌脚本不构成 Web 攻击",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0057",
+   "name": "图片 base64 触发脚本规则",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.body",
+      "op": "regex",
+      "value": "^data:image/(png|jpeg);base64,"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "base64 图片数据误命中",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0058",
+   "name": "JSON 中的 HTML 字段",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.content_type",
+      "op": "contains",
+      "value": "application/json"
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "xss_reflected,xss_stored"
+     },
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/api/"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "API 返回/提交结构化数据",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0059",
+   "name": "401 风暴来自过期令牌",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 401
+     },
+     {
+      "field": "http.header",
+      "op": "contains",
+      "value": "Authorization: Bearer"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "令牌过期导致的批量 401",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0060",
+   "name": "403 风暴来自权限不足",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 403
+     },
+     {
+      "field": "src.user_role",
+      "op": "==",
+      "value": "guest"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "游客访问受限资源",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0061",
+   "name": "429 风暴来自客户端重试",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 429
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "限流后的自动重试",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0062",
+   "name": "500 错误页含 SQL 关键字",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": ">=",
+      "value": 500
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "sql_injection,sql_injection_blind"
+     },
+     {
+      "field": "http.path",
+      "op": "not_exists",
+      "value": "query"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "异常堆栈含 SQL 片段",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0063",
+   "name": "WAF 拦截页回显攻击串",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "in",
+      "value": "403,406,418"
+     },
+     {
+      "field": "http.response_body",
+      "op": "contains",
+      "value": "blocked"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "拦截页复制了原始请求",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0064",
+   "name": "错误页含路径关键字",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": ">=",
+      "value": 500
+     },
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "path_traversal"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "堆栈中的文件路径",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0065",
+   "name": "404 风暴来自死链检查",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 404
+     },
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "linkchecker"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "死链检测工具",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0066",
+   "name": "404 风暴来自爬虫",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 404
+     },
+     {
+      "field": "history.rps",
+      "op": ">=",
+      "value": 50
+     },
+     {
+      "field": "http.ua",
+      "op": "regex",
+      "value": "(bot|spider|crawler)"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "爬虫遍历失效链接",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0067",
+   "name": "管理共享正常访问",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 445
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "admin_subnet"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "管理员访问共享",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0068",
+   "name": "跳板机 SSH",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 22
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "jump_host_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "运维跳板",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0069",
+   "name": "管理网段 RDP",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 3389
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "admin_subnet"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "远程运维",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0070",
+   "name": "应用网段访问数据库",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "in",
+      "value": "3306,5432,6379,27017"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "app_subnet"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "应用正常连库",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0071",
+   "name": "监控 ICMP",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "proto",
+      "op": "==",
+      "value": "icmp"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "monitoring_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "可用性探测",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0072",
+   "name": "监控 SNMP",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 161
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "monitoring_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "指标采集",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0073",
+   "name": "日志外送",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 514
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "log_collector_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "syslog 集中收集",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0074",
+   "name": "数据库主从复制",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 3306
+     },
+     {
+      "field": "flow.conn_duration",
+      "op": ">=",
+      "value": 3600
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "长连接复制流量",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0075",
+   "name": "Redis 主从复制",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 6379
+     },
+     {
+      "field": "flow.payload",
+      "op": "contains",
+      "value": "PSYNC"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "复制协议",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0076",
+   "name": "K8s 节点 watch",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 6443
+     },
+     {
+      "field": "http.query",
+      "op": "contains",
+      "value": "watch=true"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "kubelet 监听资源",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0077",
+   "name": "etcd 集群通信",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "in",
+      "value": "2379,2380"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "etcd_peer_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "集群内部通信",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0078",
+   "name": "Keepalived VRRP",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "proto",
+      "op": "==",
+      "value": "vrrp"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "高可用心跳",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0079",
+   "name": "备份窗口大流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.in_backup_window",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "backup_job_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "夜间备份",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0080",
+   "name": "ETL 批量传输",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.hour",
+      "op": "in",
+      "value": "1,2,3,4"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "etl_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "数据仓库同步",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0081",
+   "name": "CDN 回源流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.header",
+      "op": "contains",
+      "value": "Via:"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "cdn_origin_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "CDN 回源",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0082",
+   "name": "负载均衡健康检查",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "lb_ips"
+     },
+     {
+      "field": "http.path",
+      "op": "in",
+      "value": "/,/health"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "LB 探测",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0083",
+   "name": "服务网格 mTLS 流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "flow.tls_client_cert",
+      "op": "contains",
+      "value": "spiffe://"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "sidecar 间通信",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0084",
+   "name": "gRPC 健康检查",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/grpc.health.v1.Health/"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "gRPC 探针",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0085",
+   "name": "Prometheus 抓取",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "==",
+      "value": "/metrics"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "monitoring_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "指标端点被采集",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0086",
+   "name": "APM 上报",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.port",
+      "op": "in",
+      "value": "4317,4318,8200"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "app_subnet"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "OpenTelemetry 上报",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0087",
+   "name": "日志采集器读取",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/_cat/"
+     },
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "monitoring_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "ES 状态巡检",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0088",
+   "name": "同规则冷却期内重复",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_rule_sec",
+      "op": "<=",
+      "value": "alert_cooldown_sec"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "冷却窗口内重复命中",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0089",
+   "name": "同源同类别重复",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_category_count_60s",
+      "op": ">=",
+      "value": 2
+     },
+     {
+      "field": "history.same_category_alerted",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "已告警过，避免风暴",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0090",
+   "name": "告警来自镜像口重复流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "flow.duplicate_of",
+      "op": "exists",
+      "value": null
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "双接口抓到同一报文",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0091",
+   "name": "内网到内网正常访问",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.is_internal",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "dst.is_internal",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "low,medium"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "内网低危命中不升级",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0092",
+   "name": "单次低危命中",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "low"
+     },
+     {
+      "field": "rule.count",
+      "op": "<=",
+      "value": 1
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "单次低危不足以判定",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0093",
+   "name": "历史误报率极高规则",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.fp_rate_30d",
+      "op": ">=",
+      "value": 0.8
+     },
+     {
+      "field": "rule.severity",
+      "op": "!=",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "该规则历史误报率超 80%",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0094",
+   "name": "历史误报高的资产",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.fp_rate_30d",
+      "op": ">=",
+      "value": 0.6
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "low,medium"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "该资产历史告警多为误报",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0095",
+   "name": "人工标记为误报的指纹",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.manual_fp",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "分析师已确认同类为误报",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0096",
+   "name": "测试环境靶场流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.env",
+      "op": "==",
+      "value": "test"
+     },
+     {
+      "field": "asset.tags",
+      "op": "contains",
+      "value": "lab"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "测试环境允许攻击流量",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0097",
+   "name": "维护窗口内变更流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.in_maintenance_window",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "asset.change_ticket",
+      "op": "exists",
+      "value": null
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "有变更单的窗口",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0098",
+   "name": "安全设备自检",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.header",
+      "op": "contains",
+      "value": "X-Scanner-SelfTest"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "设备自检请求",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0099",
+   "name": "爬虫限速内的抓取",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "bot"
+     },
+     {
+      "field": "history.rps",
+      "op": "<=",
+      "value": 5
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "低频合法抓取",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0100",
+   "name": "移动端 SDK 重试",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "okhttp"
+     },
+     {
+      "field": "http.status",
+      "op": ">=",
+      "value": 500
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "客户端失败重试",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0101",
+   "name": "IoT 设备固定轮询",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "regex",
+      "value": "(ESP8266|Arduino|Tasmota)"
+     },
+     {
+      "field": "history.interval_stddev",
+      "op": "<=",
+      "value": 1.0
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "设备定时上报",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0102",
+   "name": "打印机扫描仪访问",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "regex",
+      "value": "(HP|Canon|Epson)"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "办公设备",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0103",
+   "name": "内网漏洞扫描（授权）",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "authorized_scanner_ips"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "授权扫描器",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0104",
+   "name": "蜜罐诱捕流量",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.asset_tags",
+      "op": "contains",
+      "value": "honeypot"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "蜜罐命中不产生真实风险",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0105",
+   "name": "DNS 验证 TXT 记录",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dns.qtype",
+      "op": "==",
+      "value": "TXT"
+     },
+     {
+      "field": "dns.qname",
+      "op": "regex",
+      "value": "(_acme-challenge|_dmarc|_domainkey)"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "域名所有权/邮件策略记录",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0106",
+   "name": "SPF/DKIM 查询",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dns.qtype",
+      "op": "in",
+      "value": "TXT,MX"
+     },
+     {
+      "field": "dns.qname",
+      "op": "contains",
+      "value": "._domainkey"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "邮件认证记录",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0107",
+   "name": "扫描器指纹 + 注入命中 = 确认自动化注入",
+   "stage": "aggregate",
+   "priority": 95,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "sql_injection,sql_injection_blind"
+     },
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "sqlmap"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "sqlmap 指纹与注入载荷同时出现，确认工具化注入",
+   "mitre": "T1190",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0108",
+   "name": "扫描器指纹 + 任意利用类命中",
+   "stage": "aggregate",
+   "priority": 92,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "regex",
+      "value": "(sqlmap|nikto|nuclei|xray|awvs)"
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "sql_injection,command_injection,file_inclusion,ssrf,xxe"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 2.5,
+   "reason": "工具指纹与利用载荷同源，确认攻击行为",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0109",
+   "name": "侦察成功 + 注入尝试",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.recon_success_600s",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "sql_injection,sql_injection_blind"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "先探测 .git/.env 再注入，属于有步骤的攻击",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0110",
+   "name": "文件包含 + 敏感文件回显",
+   "stage": "aggregate",
+   "priority": 98,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "file_inclusion"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     },
+     {
+      "field": "http.response_body",
+      "op": "regex",
+      "value": "root:[x*]?:0:0:"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "响应中出现 /etc/passwd 内容，确认任意文件读取",
+   "mitre": "T1005",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0111",
+   "name": "命令注入 + 命令回显",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "command_injection"
+     },
+     {
+      "field": "http.response_body",
+      "op": "regex",
+      "value": "uid=\\d+\\(\\w+\\)"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "响应中出现命令执行结果，确认 RCE",
+   "mitre": "T1059",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0112",
+   "name": "上传脚本 + 后续访问脚本",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.upload_script_600s",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "\\.(php|jsp|aspx)$"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "先上传可执行脚本又访问成功，确认 Webshell 落地",
+   "mitre": "T1505.003",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0113",
+   "name": "Webshell 路径 + 命令参数",
+   "stage": "aggregate",
+   "priority": 97,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "webshell"
+     },
+     {
+      "field": "http.query",
+      "op": "regex",
+      "value": "(cmd|exec|shell)="
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "后门文件带命令参数且返回 200",
+   "mitre": "T1505.003",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0114",
+   "name": "SSRF + 元数据成功读取",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "ssrf"
+     },
+     {
+      "field": "http.response_body",
+      "op": "regex",
+      "value": "(ami-id|instance-id|iam/security-credentials)"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "读取到云实例元数据，确认凭据泄露风险",
+   "mitre": "T1552.005",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0115",
+   "name": "XXE + 带外回连",
+   "stage": "aggregate",
+   "priority": 96,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "xxe"
+     },
+     {
+      "field": "intel.oob_hit",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "外部实体触发回连，确认 XXE 可利用",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0116",
+   "name": "暴力破解 + 登录成功",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "brute_force"
+     },
+     {
+      "field": "http.status",
+      "op": "in",
+      "value": "200,302"
+     },
+     {
+      "field": "history.fail_count_300s",
+      "op": ">=",
+      "value": 10
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "多次失败后成功，确认账号接管",
+   "mitre": "T1110",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0117",
+   "name": "密码喷洒 + 成功登录",
+   "stage": "aggregate",
+   "priority": 98,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "password_spray"
+     },
+     {
+      "field": "http.status",
+      "op": "in",
+      "value": "200,302"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "同一口令尝试多个账号后成功",
+   "mitre": "T1110.003",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0118",
+   "name": "SQL 注入 + 响应长度偏差",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "sql_injection"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     },
+     {
+      "field": "http.response_len_deviation",
+      "op": ">=",
+      "value": 0.4
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 2.5,
+   "reason": "响应体长度显著变化，提示注入改变查询结果",
+   "mitre": "T1190",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0119",
+   "name": "布尔盲注 + 成对响应差异",
+   "stage": "aggregate",
+   "priority": 94,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "sql_injection_blind"
+     },
+     {
+      "field": "history.paired_diff_ratio",
+      "op": ">=",
+      "value": 0.3
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "真假条件响应长度稳定差异，确认布尔盲注",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0120",
+   "name": "时间盲注 + 延迟匹配",
+   "stage": "aggregate",
+   "priority": 94,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "sql_injection_blind"
+     },
+     {
+      "field": "http.response_time_ms",
+      "op": ">=",
+      "value": 3000
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "响应时延与注入的 sleep 值吻合",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0121",
+   "name": "联合查询 + 列数对齐",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.id",
+      "op": "contains",
+      "value": "SQLI-001"
+     },
+     {
+      "field": "history.union_column_match",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 2.5,
+   "reason": "联合查询列数与页面回显一致",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0122",
+   "name": "存储型 XSS + 写入接口",
+   "stage": "aggregate",
+   "priority": 92,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "xss_stored"
+     },
+     {
+      "field": "http.method",
+      "op": "in",
+      "value": "POST,PUT,PATCH"
+     },
+     {
+      "field": "http.status",
+      "op": "in",
+      "value": "200,201"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 2.5,
+   "reason": "载荷写入成功，确认存储型 XSS",
+   "mitre": "T1059.007",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0123",
+   "name": "反射型 XSS + 响应回显",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "xss_reflected"
+     },
+     {
+      "field": "http.response_body",
+      "op": "contains",
+      "value": "onerror="
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 2.0,
+   "reason": "响应体包含未编码载荷",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0124",
+   "name": "CRLF + 响应头注入成功",
+   "stage": "aggregate",
+   "priority": 92,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "crlf_injection"
+     },
+     {
+      "field": "http.response_header",
+      "op": "contains",
+      "value": "Set-Cookie"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 2.5,
+   "reason": "响应头被拆分注入",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0125",
+   "name": "反序列化 + 异常堆栈",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "deserialization"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 500
+     },
+     {
+      "field": "http.response_body",
+      "op": "regex",
+      "value": "(ClassNotFoundException|InvalidClassException|unserialize)"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 2.5,
+   "reason": "解析器抛反序列化异常，确认载荷进入反序列化流程",
+   "mitre": "T1190",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0126",
+   "name": "SSTI + 算术结果回显",
+   "stage": "aggregate",
+   "priority": 95,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "ssti"
+     },
+     {
+      "field": "http.response_body",
+      "op": "regex",
+      "value": "(^|[^\\d])49([^\\d]|$)"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "模板表达式 7*7 被求值为 49",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0127",
+   "name": "SSTI + 命令回显",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "ssti"
+     },
+     {
+      "field": "http.response_body",
+      "op": "regex",
+      "value": "uid=\\d+"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "模板注入已可执行命令",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0128",
+   "name": "同源多类别攻击",
+   "stage": "aggregate",
+   "priority": 93,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.distinct_categories_300s",
+      "op": ">=",
+      "value": 5
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "5 分钟内尝试 5 类以上攻击，确认人工/工具渗透",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0129",
+   "name": "同源多高危命中",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.critical_count_300s",
+      "op": ">=",
+      "value": 3
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "短时多次高危命中",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0130",
+   "name": "先扫描后利用",
+   "stage": "aggregate",
+   "priority": 91,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.scanner_600s",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "扫描后 10 分钟内出现高危利用",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0131",
+   "name": "侦察 404 后转目录穿越",
+   "stage": "aggregate",
+   "priority": 87,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.recon_404_count_300s",
+      "op": ">=",
+      "value": 20
+     },
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "path_traversal"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "批量探测后转入穿越尝试",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0132",
+   "name": "登录失败后转注入",
+   "stage": "aggregate",
+   "priority": 89,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.fail_count_300s",
+      "op": ">=",
+      "value": 5
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "sql_injection,sql_injection_blind"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "口令尝试失败后改用注入绕过",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0133",
+   "name": "内网主机外联 C2",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.is_internal",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "c2_beacon"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "内网主机出现 C2 心跳，疑似已失陷",
+   "mitre": "T1071",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0134",
+   "name": "内网主机挖矿",
+   "stage": "aggregate",
+   "priority": 95,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.is_internal",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "crypto_mining"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "内网主机连接矿池",
+   "mitre": "T1496",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0135",
+   "name": "失陷主机横向扫描",
+   "stage": "aggregate",
+   "priority": 97,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.c2_3600s",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "protocol_anomaly"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 3.5,
+   "reason": "已发现 C2 的主机开始横向扫描",
+   "mitre": "T1021",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0136",
+   "name": "核心资产 + 中危命中",
+   "stage": "aggregate",
+   "priority": 80,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.criticality",
+      "op": "==",
+      "value": "core"
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "medium"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "核心资产的中危按高危处理",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0137",
+   "name": "互联网暴露资产 + 高危",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.exposure",
+      "op": "==",
+      "value": "internet"
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "公网可达资产的高危命中优先处置",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0138",
+   "name": "非工作时间管理员登录成功",
+   "stage": "aggregate",
+   "priority": 85,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.is_workhour",
+      "op": "==",
+      "value": false
+     },
+     {
+      "field": "src.user_role",
+      "op": "==",
+      "value": "admin"
+     },
+     {
+      "field": "http.status",
+      "op": "in",
+      "value": "200,302"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "异常时段管理员登录成功",
+   "mitre": "T1078",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0139",
+   "name": "异地登录（不可能旅行）",
+   "stage": "aggregate",
+   "priority": 86,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.geo_distance_km",
+      "op": ">=",
+      "value": 800
+     },
+     {
+      "field": "history.last_login_minutes",
+      "op": "<=",
+      "value": 60
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "短时间内跨地域登录",
+   "mitre": "T1078",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0140",
+   "name": "新设备 + 管理员角色",
+   "stage": "aggregate",
+   "priority": 78,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.device_fingerprint_new",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "src.user_role",
+      "op": "==",
+      "value": "admin"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "新设备登录高权限账号",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0141",
+   "name": "批量下载敏感文件",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.download_count_300s",
+      "op": ">=",
+      "value": 100
+     },
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "\\.(pdf|xlsx|docx|csv|zip)$"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "短时批量下载，疑似数据外泄",
+   "mitre": "T1030",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0142",
+   "name": "数据库拖库特征",
+   "stage": "aggregate",
+   "priority": 91,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.union_requests_300s",
+      "op": ">=",
+      "value": 30
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "连续联合查询，疑似逐表拖取",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0143",
+   "name": "ID 枚举越权",
+   "stage": "aggregate",
+   "priority": 84,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.sequential_id_count_300s",
+      "op": ">=",
+      "value": 100
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "连续递增 ID 且均返回 200",
+   "mitre": "T1087",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0144",
+   "name": "报错注入反复提取",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "error_based"
+     },
+     {
+      "field": "history.same_rule_count_300s",
+      "op": ">=",
+      "value": 20
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "反复利用报错回显提取数据",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0145",
+   "name": "载荷高频重复",
+   "stage": "aggregate",
+   "priority": 82,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_payload_count_300s",
+      "op": ">=",
+      "value": 50
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "同一载荷重复 50 次以上",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0146",
+   "name": "载荷变形演进",
+   "stage": "aggregate",
+   "priority": 86,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.payload_variants_300s",
+      "op": ">=",
+      "value": 5
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "同一攻击点使用多种编码变形",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0147",
+   "name": "编码绕过特征",
+   "stage": "aggregate",
+   "priority": 87,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "evasion"
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "high,critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "使用多重编码/注释混淆规避检测",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0148",
+   "name": "同一会话 UA 轮换",
+   "stage": "aggregate",
+   "priority": 80,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.ua_rotation_300s",
+      "op": ">=",
+      "value": 3
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "同源会话频繁更换 UA",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0149",
+   "name": "同一载荷多源 IP",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_payload_sources_300s",
+      "op": ">=",
+      "value": 10
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "同一载荷来自 10 个以上源，疑似僵尸网络",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0150",
+   "name": "低频分布式攻击",
+   "stage": "aggregate",
+   "priority": 89,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_payload_sources_3600s",
+      "op": ">=",
+      "value": 50
+     },
+     {
+      "field": "history.per_source_rps",
+      "op": "<=",
+      "value": 0.1
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "大量源低速同载荷，绕过单 IP 限速",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0151",
+   "name": "TLS 指纹与 UA 不符",
+   "stage": "aggregate",
+   "priority": 75,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "tls.ja3",
+      "op": "!=",
+      "value": "ua_expected_ja3"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "UA 声称浏览器但 TLS 指纹为脚本库",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0152",
+   "name": "无头浏览器行为",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "HeadlessChrome"
+     },
+     {
+      "field": "history.asset_requests",
+      "op": "<=",
+      "value": 1
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "无头浏览器且不加载静态资源",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0153",
+   "name": "失败后成功登录（同 ASN）",
+   "stage": "aggregate",
+   "priority": 96,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.fail_count_600s",
+      "op": ">=",
+      "value": 20
+     },
+     {
+      "field": "http.status",
+      "op": "in",
+      "value": "200,302"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "同网段大量失败后出现成功",
+   "mitre": "T1110",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0154",
+   "name": "撞库特征（多账号少口令）",
+   "stage": "aggregate",
+   "priority": 96,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.distinct_accounts_300s",
+      "op": ">=",
+      "value": 20
+     },
+     {
+      "field": "history.distinct_passwords_300s",
+      "op": "<=",
+      "value": 3
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "账号多、口令少，典型撞库",
+   "mitre": "T1110.004",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0155",
+   "name": "口令喷洒（多账号同口令）",
+   "stage": "aggregate",
+   "priority": 96,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.distinct_accounts_300s",
+      "op": ">=",
+      "value": 20
+     },
+     {
+      "field": "history.distinct_passwords_300s",
+      "op": "==",
+      "value": 1
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "同一口令横向尝试",
+   "mitre": "T1110.003",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0156",
+   "name": "OTP 枚举成功",
+   "stage": "aggregate",
+   "priority": 95,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.otp_attempts_60s",
+      "op": ">=",
+      "value": 8
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "短时间内大量验证码尝试后成功",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0157",
+   "name": "JWT alg=none 绕过",
+   "stage": "aggregate",
+   "priority": 96,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "jwt_none"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "空算法令牌被接受",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0158",
+   "name": "批量赋值提权成功",
+   "stage": "aggregate",
+   "priority": 93,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "api_abuse"
+     },
+     {
+      "field": "http.body",
+      "op": "contains",
+      "value": "\"role\""
+     },
+     {
+      "field": "http.status",
+      "op": "in",
+      "value": "200,201"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "role 字段被接受",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0159",
+   "name": "IDOR 返回他人数据",
+   "stage": "aggregate",
+   "priority": 94,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     },
+     {
+      "field": "history.owner_mismatch",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "响应数据属主与当前用户不一致",
+   "mitre": "T1190",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0160",
+   "name": "GraphQL 内省暴露",
+   "stage": "aggregate",
+   "priority": 65,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "api_abuse"
+     },
+     {
+      "field": "http.body",
+      "op": "contains",
+      "value": "__schema"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": 1.0,
+   "reason": "内省查询返回结构",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0161",
+   "name": "请求头注入 SQL",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "sql_injection,sql_injection_blind"
+     },
+     {
+      "field": "rule.target",
+      "op": "in",
+      "value": "header,cookie,user_agent"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "注入点位于请求头",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0162",
+   "name": "Log4j + DNS 回连",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "log4j"
+     },
+     {
+      "field": "intel.oob_hit",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "JNDI 载荷触发回连",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0163",
+   "name": "Shellshock + 命令回显",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "shellshock"
+     },
+     {
+      "field": "http.response_body",
+      "op": "regex",
+      "value": "uid=\\d+"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "CGI 环境变量注入被执行",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0164",
+   "name": "Struts2 OGNL 执行成功",
+   "stage": "aggregate",
+   "priority": 97,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "command_injection"
+     },
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "ognl"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "OGNL 表达式被求值",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0165",
+   "name": "上传 + 执行 = 失陷确认",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.upload_script_3600s",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "webshell,command_injection"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "上传脚本后被访问执行，主机确认失陷",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0166",
+   "name": "反弹 Shell 出站",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "reverse_shell"
+     },
+     {
+      "field": "dst.is_internal",
+      "op": "==",
+      "value": false
+     },
+     {
+      "field": "flow.dst_port",
+      "op": ">=",
+      "value": 1024
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "出站连接到外部高位端口",
+   "mitre": "T1059",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0167",
+   "name": "挖矿 + CPU 饱和",
+   "stage": "aggregate",
+   "priority": 96,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "crypto_mining"
+     },
+     {
+      "field": "host.cpu_percent",
+      "op": ">=",
+      "value": 95
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "矿池连接伴随 CPU 满载",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0168",
+   "name": "勒索信文件名出现",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "file.created_name",
+      "op": "regex",
+      "value": "(README|DECRYPT|RECOVER).{0,20}(txt|html)$"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "出现勒索说明文件",
+   "mitre": "T1486",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0169",
+   "name": "卷影副本删除",
+   "stage": "aggregate",
+   "priority": 98,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "process.cmdline",
+      "op": "contains",
+      "value": "vssadmin delete shadows"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "删除卷影是勒索前置动作",
+   "mitre": "T1490",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0170",
+   "name": "LSASS 内存转储",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "process.cmdline",
+      "op": "regex",
+      "value": "(procdump|comsvcs\\.dll).{0,40}lsass"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "凭据窃取典型命令",
+   "mitre": "T1003.001",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0171",
+   "name": "多主机同 C2",
+   "stage": "aggregate",
+   "priority": 95,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.c2_dst_hosts_3600s",
+      "op": ">=",
+      "value": 3
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 3.0,
+   "reason": "3 台以上主机连接同一 C2",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0172",
+   "name": "同资产组同载荷",
+   "stage": "aggregate",
+   "priority": 86,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.asset_group_hits",
+      "op": ">=",
+      "value": 5
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "同资产组多台出现相同载荷",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0173",
+   "name": "云主机攻击生产",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.asn_type",
+      "op": "==",
+      "value": "cloud"
+     },
+     {
+      "field": "asset.env",
+      "op": "==",
+      "value": "prod"
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "云 VPS 对生产系统高危攻击",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0174",
+   "name": "Tor 出口攻击",
+   "stage": "aggregate",
+   "priority": 87,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "intel.tor_exit",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "high,critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "匿名网络来源的攻击",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0175",
+   "name": "地理不可能的攻击链路",
+   "stage": "aggregate",
+   "priority": 78,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.geo_conflict",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "同源短时出现在两个远距离地区",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0176",
+   "name": "未认证 + 高危",
+   "stage": "aggregate",
+   "priority": 85,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.authenticated",
+      "op": "==",
+      "value": false
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "未认证会话触发高危",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0177",
+   "name": "CVE 版本匹配",
+   "stage": "aggregate",
+   "priority": 92,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.version_match_cve",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "cve"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 2.5,
+   "reason": "资产版本与规则 CVE 匹配",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0178",
+   "name": "封禁后继续攻击",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.blocked_before",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "history.hits_after_block",
+      "op": ">=",
+      "value": 10
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "封禁后仍持续尝试，需延长封禁",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0179",
+   "name": "仅换源端口重试",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_payload_new_port",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "换端口绕过封禁",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0180",
+   "name": "403 后继续攻击",
+   "stage": "aggregate",
+   "priority": 80,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 403
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "high,critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "被拒绝后仍继续，说明有明确目标",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0181",
+   "name": "授权源在非授权时段",
+   "stage": "aggregate",
+   "priority": 85,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "authorized_scanner_ips"
+     },
+     {
+      "field": "time.in_authorized_window",
+      "op": "==",
+      "value": false
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "授权扫描器在约定时间外活动",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0182",
+   "name": "外部伪造内网源",
+   "stage": "aggregate",
+   "priority": 92,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "protected_cidrs"
+     },
+     {
+      "field": "flow.ingress_if",
+      "op": "==",
+      "value": "wan"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "公网口收到内网源地址，疑似欺骗",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0183",
+   "name": "Bogon 源地址",
+   "stage": "aggregate",
+   "priority": 93,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "bogon_ranges"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "保留地址出现在公网侧",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0184",
+   "name": "分片 + 利用载荷",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "flow.fragmented",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "分片规避检测并携带利用载荷",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0185",
+   "name": "分块传输 + 利用载荷",
+   "stage": "aggregate",
+   "priority": 82,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.header",
+      "op": "contains",
+      "value": "Transfer-Encoding: chunked"
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "分块编码用于绕过内容检查",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0186",
+   "name": "多重编码 + 利用载荷",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "double_encoded"
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "high,critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "双重编码绕过 WAF",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0187",
+   "name": "Unicode 规范化 + 利用",
+   "stage": "aggregate",
+   "priority": 87,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "unicode_bypass"
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "high,critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "Unicode 变体绕过",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0188",
+   "name": "空字节 + 上传脚本",
+   "stage": "aggregate",
+   "priority": 95,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.body",
+      "op": "contains",
+      "value": "%00"
+     },
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "file_upload"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "空字节截断扩展名校验",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0189",
+   "name": ".htaccess + PHP 上传组合",
+   "stage": "aggregate",
+   "priority": 97,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.htaccess_upload_600s",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "history.php_upload_600s",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "先传 .htaccess 再传 PHP，确认解析绕过",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0190",
+   "name": "web.config 上传",
+   "stage": "aggregate",
+   "priority": 96,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.body",
+      "op": "contains",
+      "value": "filename=\"web.config\""
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "覆盖 IIS 配置可直接执行脚本",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0191",
+   "name": "后门文件名 + 200",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "/(shell|cmd|backdoor)\\.(php|jsp|aspx)"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "疑似后门路径可访问",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0192",
+   "name": "后台爆破后成功",
+   "stage": "aggregate",
+   "priority": 98,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/admin"
+     },
+     {
+      "field": "history.fail_count_300s",
+      "op": ">=",
+      "value": 10
+     },
+     {
+      "field": "http.status",
+      "op": "in",
+      "value": "200,302"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "后台口令爆破成功",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0193",
+   "name": "URL 中携带密钥",
+   "stage": "aggregate",
+   "priority": 65,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.query",
+      "op": "regex",
+      "value": "(api_?key|access_?token|secret)="
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": 1.0,
+   "reason": "凭据出现在 URL，可能被日志留存",
+   "mitre": "T1552.001",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0194",
+   "name": "响应泄露密钥",
+   "stage": "aggregate",
+   "priority": 96,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.response_body",
+      "op": "regex",
+      "value": "(AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "响应体包含云密钥或私钥",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0195",
+   "name": "目录列表开启",
+   "stage": "aggregate",
+   "priority": 75,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     },
+     {
+      "field": "http.response_body",
+      "op": "contains",
+      "value": "Index of /"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "目录可浏览，信息暴露",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0196",
+   "name": "备份文件可下载",
+   "stage": "aggregate",
+   "priority": 92,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "regex",
+      "value": "\\.(zip|tar\\.gz|sql|bak)$"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "备份文件对外可读",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0197",
+   "name": ".env 可访问",
+   "stage": "aggregate",
+   "priority": 97,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/.env"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "环境变量文件可读，凭据可能泄露",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0198",
+   "name": ".git/config 可访问",
+   "stage": "aggregate",
+   "priority": 94,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/.git/config"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 3.0,
+   "reason": "源码仓库元数据泄露",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0199",
+   "name": "Actuator heapdump 可下载",
+   "stage": "aggregate",
+   "priority": 97,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/actuator/heapdump"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "堆转储含内存凭据",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0200",
+   "name": "K8s Secrets 可读",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/api/v1/namespaces"
+     },
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "/secrets"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "集群密钥可读",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0201",
+   "name": "云元数据读取成功",
+   "stage": "aggregate",
+   "priority": 97,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.path",
+      "op": "contains",
+      "value": "meta-data"
+     },
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "实例元数据可访问",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0202",
+   "name": "SSRF 打 Redis 写入",
+   "stage": "aggregate",
+   "priority": 96,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "ssrf"
+     },
+     {
+      "field": "http.query",
+      "op": "contains",
+      "value": "set%20"
+     },
+     {
+      "field": "dst.port",
+      "op": "==",
+      "value": 6379
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "通过 SSRF 向 Redis 写键",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0203",
+   "name": "XXE 文件内容回显",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "xxe"
+     },
+     {
+      "field": "http.response_body",
+      "op": "contains",
+      "value": "root:x:0:0"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "外部实体读取结果出现在响应",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0204",
+   "name": "反序列化带外回连",
+   "stage": "aggregate",
+   "priority": 99,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.category",
+      "op": "==",
+      "value": "deserialization"
+     },
+     {
+      "field": "intel.oob_hit",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 4.0,
+   "reason": "gadget 链触发外部回连",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0205",
+   "name": "已知 gadget 类名出现",
+   "stage": "aggregate",
+   "priority": 90,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.tags",
+      "op": "contains",
+      "value": "known_gadget"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 2.5,
+   "reason": "载荷包含公开利用链类名",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0206",
+   "name": "多类别同 UA",
+   "stage": "aggregate",
+   "priority": 82,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.distinct_categories_same_ua_600s",
+      "op": ">=",
+      "value": 3
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "同一 UA 触发多类攻击，工具化明显",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0207",
+   "name": "固定间隔自动化",
+   "stage": "aggregate",
+   "priority": 80,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.interval_stddev",
+      "op": "<=",
+      "value": 0.1
+     },
+     {
+      "field": "history.request_count_300s",
+      "op": ">=",
+      "value": 30
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "请求间隔高度规律，非人工操作",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0208",
+   "name": "攻击速率超阈值 3 倍",
+   "stage": "aggregate",
+   "priority": 78,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.rps",
+      "op": ">=",
+      "value": "rate_limit * 3"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "远超正常速率",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0209",
+   "name": "核心资产 + 高危 + 外网",
+   "stage": "aggregate",
+   "priority": 95,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.criticality",
+      "op": "==",
+      "value": "core"
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     },
+     {
+      "field": "src.is_internal",
+      "op": "==",
+      "value": false
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.0,
+   "reason": "核心资产遭外部高危攻击",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0210",
+   "name": "内网核心资产 + 高危",
+   "stage": "aggregate",
+   "priority": 92,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.criticality",
+      "op": "==",
+      "value": "core"
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     },
+     {
+      "field": "src.is_internal",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "内网对核心资产的高危攻击，需内部排查",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0211",
+   "name": "成功指标 + 高危",
+   "stage": "aggregate",
+   "priority": 97,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.success_indicator",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 3.5,
+   "reason": "存在成功利用迹象的高危告警",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0212",
+   "name": "历史低误报 + 高危",
+   "stage": "aggregate",
+   "priority": 85,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.fp_rate_30d",
+      "op": "<=",
+      "value": 0.05
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "confirmed",
+   "action": "confirm",
+   "score_delta": 1.5,
+   "reason": "该规则历史几乎无误报",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0213",
+   "name": "低置信 + 无旁证",
+   "stage": "aggregate",
+   "priority": 40,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.confidence",
+      "op": "==",
+      "value": "low"
+     },
+     {
+      "field": "history.corroborating_signals",
+      "op": "==",
+      "value": 0
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -0.5,
+   "reason": "单条低置信命中，无其他信号",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0214",
+   "name": "单条低危",
+   "stage": "aggregate",
+   "priority": 30,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "low"
+     },
+     {
+      "field": "history.corroborating_signals",
+      "op": "==",
+      "value": 0
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -1.0,
+   "reason": "低危且无旁证",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0215",
+   "name": "攻击打在不存在端点",
+   "stage": "aggregate",
+   "priority": 35,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.status",
+      "op": "==",
+      "value": 404
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "high,critical"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -1.5,
+   "reason": "目标不存在，利用未成立",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0216",
+   "name": "蜜罐命中",
+   "stage": "aggregate",
+   "priority": 60,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.asset_tags",
+      "op": "contains",
+      "value": "honeypot"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "蜜罐命中用于情报，不影响生产",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0217",
+   "name": "告警风暴去重",
+   "stage": "aggregate",
+   "priority": 20,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_rule_count_60s",
+      "op": ">=",
+      "value": 100
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -2.0,
+   "reason": "同规则 1 分钟超 100 条，需聚合",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0218",
+   "name": "同载荷多源（战役）",
+   "stage": "aggregate",
+   "priority": 94,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_payload_sources_600s",
+      "op": ">=",
+      "value": 50
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 3.0,
+   "reason": "50 个源使用同一载荷，升级为战役",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0219",
+   "name": "靶场攻击不计分",
+   "stage": "aggregate",
+   "priority": 10,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.env",
+      "op": "==",
+      "value": "test"
+     },
+     {
+      "field": "asset.tags",
+      "op": "contains",
+      "value": "lab"
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -3.0,
+   "reason": "靶场流量仅供演练",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0220",
+   "name": "生产环境提升优先级",
+   "stage": "aggregate",
+   "priority": 78,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.env",
+      "op": "==",
+      "value": "prod"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "生产环境的影响面更大",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0221",
+   "name": "测试环境降级",
+   "stage": "aggregate",
+   "priority": 30,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.env",
+      "op": "==",
+      "value": "test"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -1.0,
+   "reason": "测试环境风险可控",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0222",
+   "name": "开发环境降级",
+   "stage": "aggregate",
+   "priority": 30,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.env",
+      "op": "==",
+      "value": "dev"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -1.0,
+   "reason": "开发环境通常含测试数据",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0223",
+   "name": "互联网暴露资产提级",
+   "stage": "aggregate",
+   "priority": 82,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.exposure",
+      "op": "==",
+      "value": "internet"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "公网可达，利用门槛低",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0224",
+   "name": "仅内网可达资产降级",
+   "stage": "aggregate",
+   "priority": 45,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.exposure",
+      "op": "==",
+      "value": "internal"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -0.5,
+   "reason": "需先突破边界",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0225",
+   "name": "核心资产提级",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.criticality",
+      "op": "==",
+      "value": "core"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "核心业务系统",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0226",
+   "name": "一般资产降级",
+   "stage": "aggregate",
+   "priority": 40,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.criticality",
+      "op": "==",
+      "value": "normal"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -0.5,
+   "reason": "非关键业务",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0227",
+   "name": "含个人信息资产提级",
+   "stage": "aggregate",
+   "priority": 84,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.data_class",
+      "op": "contains",
+      "value": "pii"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "涉及个人信息，泄露后果严重",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0228",
+   "name": "含支付数据资产提级",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.data_class",
+      "op": "contains",
+      "value": "pci"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "支付卡数据受合规约束",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0229",
+   "name": "数据库资产提级",
+   "stage": "aggregate",
+   "priority": 85,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "dst.service",
+      "op": "==",
+      "value": "database"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "数据库被攻击直接威胁数据",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0230",
+   "name": "域控资产提级",
+   "stage": "aggregate",
+   "priority": 95,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.role",
+      "op": "==",
+      "value": "domain_controller"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 3.0,
+   "reason": "域控失陷等于全域失陷",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0231",
+   "name": "堡垒机资产提级",
+   "stage": "aggregate",
+   "priority": 92,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.role",
+      "op": "==",
+      "value": "jump_host"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "堡垒机是横向移动枢纽",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0232",
+   "name": "CI/CD 资产提级",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.role",
+      "op": "==",
+      "value": "cicd"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "供应链入口",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0233",
+   "name": "安全设备自身告警降级",
+   "stage": "aggregate",
+   "priority": 35,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.role",
+      "op": "==",
+      "value": "security_device"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -1.0,
+   "reason": "安全设备流量特征特殊",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0234",
+   "name": "已知脆弱资产提级",
+   "stage": "aggregate",
+   "priority": 84,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.known_vuln",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "资产存在未修复漏洞",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0235",
+   "name": "已过补丁基线的资产提级",
+   "stage": "aggregate",
+   "priority": 72,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.patch_lag_days",
+      "op": ">=",
+      "value": 90
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "补丁滞后 90 天以上",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0236",
+   "name": "新上线资产观察期",
+   "stage": "aggregate",
+   "priority": 45,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.age_days",
+      "op": "<=",
+      "value": 7
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -0.5,
+   "reason": "新资产配置可能不稳，先观察",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0237",
+   "name": "EOL 资产提级",
+   "stage": "aggregate",
+   "priority": 83,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.eol",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "已停止维护，无法修补",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0238",
+   "name": "影子资产提级",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.managed",
+      "op": "==",
+      "value": false
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "未纳管资产，无人负责",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0239",
+   "name": "资产属主已知可通知",
+   "stage": "aggregate",
+   "priority": 55,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.owner",
+      "op": "exists",
+      "value": null
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "可快速定位责任人",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0240",
+   "name": "关键业务时段提级",
+   "stage": "aggregate",
+   "priority": 60,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.in_business_peak",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "业务高峰受影响面大",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0241",
+   "name": "大促/结算窗口提级",
+   "stage": "aggregate",
+   "priority": 80,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.in_campaign_window",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "营销或结算窗口零容忍",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0242",
+   "name": "变更冻结期提级",
+   "stage": "aggregate",
+   "priority": 75,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.in_change_freeze",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "冻结期无法快速修复",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0243",
+   "name": "容灾切换期降级",
+   "stage": "aggregate",
+   "priority": 15,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.in_dr_drill",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -2.0,
+   "reason": "演练期间的探测属预期",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0244",
+   "name": "老旧系统提级",
+   "stage": "aggregate",
+   "priority": 82,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.os_eol",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "操作系统已停止支持",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0245",
+   "name": "对外 API 网关提级",
+   "stage": "aggregate",
+   "priority": 74,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.role",
+      "op": "==",
+      "value": "api_gateway"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "入口流量集中",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0246",
+   "name": "邮件网关提级",
+   "stage": "aggregate",
+   "priority": 74,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.role",
+      "op": "==",
+      "value": "mail_gateway"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "钓鱼与投毒入口",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0247",
+   "name": "VPN 网关提级",
+   "stage": "aggregate",
+   "priority": 82,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.role",
+      "op": "==",
+      "value": "vpn"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "边界入口，常被重点攻击",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0248",
+   "name": "OA/协作系统提级",
+   "stage": "aggregate",
+   "priority": 62,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.role",
+      "op": "==",
+      "value": "oa"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "常被用作水坑攻击目标",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0249",
+   "name": "供应链系统提级",
+   "stage": "aggregate",
+   "priority": 83,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.role",
+      "op": "==",
+      "value": "supply_chain"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "影响上下游",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0250",
+   "name": "与攻击目标同网段提级",
+   "stage": "aggregate",
+   "priority": 82,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.same_subnet_as_victim",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "攻击者可能在横向移动",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0251",
+   "name": "资产标签为高价值",
+   "stage": "aggregate",
+   "priority": 92,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.tags",
+      "op": "contains",
+      "value": "crown_jewel"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.5,
+   "reason": "皇冠资产",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0252",
+   "name": "资产在等保三级范围",
+   "stage": "aggregate",
+   "priority": 76,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.compliance",
+      "op": "contains",
+      "value": "mlps3"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "合规要求强制上报",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0253",
+   "name": "资产在 PCI 范围",
+   "stage": "aggregate",
+   "priority": 80,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.compliance",
+      "op": "contains",
+      "value": "pci"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "PCI DSS 要求",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0254",
+   "name": "境外资产降级",
+   "stage": "aggregate",
+   "priority": 42,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.region",
+      "op": "==",
+      "value": "overseas"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -0.5,
+   "reason": "影响面相对隔离",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0255",
+   "name": "办公网资产降级",
+   "stage": "aggregate",
+   "priority": 40,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.segment",
+      "op": "==",
+      "value": "office"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -0.5,
+   "reason": "办公网风险低于生产",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0256",
+   "name": "生产网资产提级",
+   "stage": "aggregate",
+   "priority": 75,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.segment",
+      "op": "==",
+      "value": "production"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "生产网",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0257",
+   "name": "带外管理网提级",
+   "stage": "aggregate",
+   "priority": 76,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "asset.segment",
+      "op": "==",
+      "value": "oob"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "带外网失陷影响运维",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0258",
+   "name": "已知合作方来源降级",
+   "stage": "aggregate",
+   "priority": 35,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.ip",
+      "op": "in",
+      "value": "partner_ips"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -1.0,
+   "reason": "合作方接口流量",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0259",
+   "name": "已知云厂商扫描降级",
+   "stage": "aggregate",
+   "priority": 32,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.asn_type",
+      "op": "==",
+      "value": "cloud_scan"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -1.0,
+   "reason": "云厂商资产测绘",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0260",
+   "name": "工作时间内降噪",
+   "stage": "aggregate",
+   "priority": 45,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.is_workhour",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "low,medium"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": -0.3,
+   "reason": "工作时段业务噪声高",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0261",
+   "name": "夜间低危提级",
+   "stage": "aggregate",
+   "priority": 76,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.is_workhour",
+      "op": "==",
+      "value": false
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "high,critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "非工作时段攻击更可能是真实入侵",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0262",
+   "name": "周末攻击提级",
+   "stage": "aggregate",
+   "priority": 72,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.is_weekend",
+      "op": "==",
+      "value": true
+     },
+     {
+      "field": "rule.severity",
+      "op": "==",
+      "value": "critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.8,
+   "reason": "值守薄弱时段",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0263",
+   "name": "节假日提级",
+   "stage": "aggregate",
+   "priority": 74,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.is_holiday",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "长假期间响应慢",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0264",
+   "name": "季度末提级",
+   "stage": "aggregate",
+   "priority": 73,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "time.is_quarter_end",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "结算期零容忍",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0265",
+   "name": "低频慢速攻击",
+   "stage": "aggregate",
+   "priority": 82,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.rps",
+      "op": "<=",
+      "value": 0.01
+     },
+     {
+      "field": "history.duration_min",
+      "op": ">=",
+      "value": 60
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "低速长期尝试，绕过速率阈值",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0266",
+   "name": "高频突发",
+   "stage": "aggregate",
+   "priority": 74,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.rps",
+      "op": ">=",
+      "value": 200
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "突发高频",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0267",
+   "name": "请求间隔规律",
+   "stage": "aggregate",
+   "priority": 72,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.interval_stddev",
+      "op": "<=",
+      "value": 0.2
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "机器定时特征",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0268",
+   "name": "同源命中间隔递增",
+   "stage": "aggregate",
+   "priority": 55,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.interval_trend",
+      "op": "==",
+      "value": "increasing"
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": 0.0,
+   "reason": "退避重试特征",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0269",
+   "name": "首次出现的新源",
+   "stage": "aggregate",
+   "priority": 60,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.first_seen_days",
+      "op": "<=",
+      "value": 1
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "新出现的来源",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0270",
+   "name": "长期未见的源",
+   "stage": "aggregate",
+   "priority": 60,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "src.last_seen_days",
+      "op": ">=",
+      "value": 90
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "久未活动的源突然出现",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0271",
+   "name": "同源 24 小时内重复",
+   "stage": "aggregate",
+   "priority": 72,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.hits_24h",
+      "op": ">=",
+      "value": 3
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "反复尝试",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0272",
+   "name": "同源封禁记录",
+   "stage": "aggregate",
+   "priority": 74,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.block_count_30d",
+      "op": ">=",
+      "value": 1
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "有封禁前科",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0273",
+   "name": "封禁后换 IP 继续",
+   "stage": "aggregate",
+   "priority": 88,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_payload_new_ip",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 2.0,
+   "reason": "换源绕过封禁",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0274",
+   "name": "冷却期内抑制",
+   "stage": "aggregate",
+   "priority": 30,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_rule_sec",
+      "op": "<=",
+      "value": 60
+     }
+    ]
+   },
+   "verdict": "benign",
+   "action": "suppress_alert",
+   "score_delta": -1.0,
+   "reason": "冷却期内同规则重复",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0275",
+   "name": "同 IP 多规则合并",
+   "stage": "aggregate",
+   "priority": 50,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.same_ip_rules_60s",
+      "op": ">=",
+      "value": 3
+     }
+    ]
+   },
+   "verdict": "suspicious",
+   "action": "downgrade",
+   "score_delta": 0.0,
+   "reason": "同源多规则可合并为一条事件",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0276",
+   "name": "跨天持续攻击",
+   "stage": "aggregate",
+   "priority": 82,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.days_active",
+      "op": ">=",
+      "value": 3
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "持续多日的攻击活动",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0277",
+   "name": "攻击间隔中位数稳定",
+   "stage": "aggregate",
+   "priority": 74,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.interval_median_stable",
+      "op": "==",
+      "value": true
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "稳定心跳，疑似僵尸网络",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0278",
+   "name": "单 IP 请求占比过高",
+   "stage": "aggregate",
+   "priority": 73,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.source_share",
+      "op": ">=",
+      "value": 0.5
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "单源占总量一半以上",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0279",
+   "name": "来源地域集中",
+   "stage": "aggregate",
+   "priority": 62,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.geo_concentration",
+      "op": ">=",
+      "value": 0.8
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "攻击来源高度集中",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0280",
+   "name": "来源 ASN 集中",
+   "stage": "aggregate",
+   "priority": 68,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.asn_concentration",
+      "op": ">=",
+      "value": 0.8
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.8,
+   "reason": "同 ASN 集中攻击",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0281",
+   "name": "多地域同时攻击",
+   "stage": "aggregate",
+   "priority": 80,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.geo_count_300s",
+      "op": ">=",
+      "value": 10
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "分布式来源",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0282",
+   "name": "响应时间异常",
+   "stage": "aggregate",
+   "priority": 72,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.response_time_ms",
+      "op": ">=",
+      "value": 5000
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "响应显著变慢，可能是盲注或资源耗尽",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0283",
+   "name": "响应长度异常",
+   "stage": "aggregate",
+   "priority": 68,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.response_len_deviation",
+      "op": ">=",
+      "value": 0.5
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.8,
+   "reason": "响应体长度突变",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0284",
+   "name": "状态码分布异常",
+   "stage": "aggregate",
+   "priority": 72,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.status_5xx_ratio",
+      "op": ">=",
+      "value": 0.3
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "大量 5xx，可能被攻击致障",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0285",
+   "name": "同 UA 高频轮换路径",
+   "stage": "aggregate",
+   "priority": 73,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.path_rotation_300s",
+      "op": ">=",
+      "value": 20
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "同 UA 快速切换路径，扫描特征",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0286",
+   "name": "单会话多账号",
+   "stage": "aggregate",
+   "priority": 80,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.session_accounts",
+      "op": ">=",
+      "value": 5
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "同一会话切换 5 个以上账号",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0287",
+   "name": "单账号多来源",
+   "stage": "aggregate",
+   "priority": 80,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.account_sources",
+      "op": ">=",
+      "value": 5
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.5,
+   "reason": "同账号 5 个以上来源登录",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0288",
+   "name": "首次访问即攻击",
+   "stage": "aggregate",
+   "priority": 75,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.asset_requests",
+      "op": "<=",
+      "value": 2
+     },
+     {
+      "field": "rule.severity",
+      "op": "in",
+      "value": "high,critical"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "新会话首访即高危，工具特征",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0289",
+   "name": "访问深度异常",
+   "stage": "aggregate",
+   "priority": 66,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.crawl_depth",
+      "op": ">=",
+      "value": 5
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.8,
+   "reason": "深层遍历，爬虫或扫描",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0290",
+   "name": "404 比例过高",
+   "stage": "aggregate",
+   "priority": 74,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.status_404_ratio",
+      "op": ">=",
+      "value": 0.7
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "大量 404，目录爆破",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0291",
+   "name": "请求方法分布异常",
+   "stage": "aggregate",
+   "priority": 68,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "history.method_put_delete_ratio",
+      "op": ">=",
+      "value": 0.2
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.8,
+   "reason": "大量 PUT/DELETE",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0292",
+   "name": "无 Referer 的表单提交",
+   "stage": "aggregate",
+   "priority": 62,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.referer",
+      "op": "not_exists",
+      "value": null
+     },
+     {
+      "field": "http.method",
+      "op": "==",
+      "value": "POST"
+     },
+     {
+      "field": "rule.category",
+      "op": "in",
+      "value": "csrf,brute_force"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "缺少来源头",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0293",
+   "name": "跨站 Referer",
+   "stage": "aggregate",
+   "priority": 60,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.referer",
+      "op": "regex",
+      "value": "^https?://(?!.*(?:localhost|127\\.0\\.0\\.1))"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "来源为外部站点",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0294",
+   "name": "异常 Content-Type",
+   "stage": "aggregate",
+   "priority": 58,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.content_type",
+      "op": "not_in",
+      "value": "application/json,application/x-www-form-urlencoded,multipart/form-data,text/xml"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "非预期内容类型",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0295",
+   "name": "超长请求体",
+   "stage": "aggregate",
+   "priority": 66,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.body_len",
+      "op": ">=",
+      "value": 1048576
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.8,
+   "reason": "1MB 以上请求体，可能为注入载荷或 DoS",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0296",
+   "name": "超长 URL",
+   "stage": "aggregate",
+   "priority": 66,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.url_len",
+      "op": ">=",
+      "value": 2048
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.8,
+   "reason": "超长 URL 常为绕过检测",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0297",
+   "name": "超多参数",
+   "stage": "aggregate",
+   "priority": 58,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.param_count",
+      "op": ">=",
+      "value": 50
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.5,
+   "reason": "参数数量异常",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0298",
+   "name": "重复参数名",
+   "stage": "aggregate",
+   "priority": 72,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.duplicate_params",
+      "op": ">=",
+      "value": 2
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "参数污染（HPP）",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0299",
+   "name": "UA 与实际行为不符",
+   "stage": "aggregate",
+   "priority": 70,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.ua",
+      "op": "contains",
+      "value": "Mozilla"
+     },
+     {
+      "field": "history.asset_requests",
+      "op": "<=",
+      "value": 1
+     },
+     {
+      "field": "http.header",
+      "op": "not_exists",
+      "value": "Accept-Language"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 1.0,
+   "reason": "声称浏览器但不请求资源、不带语言头",
+   "mitre": "",
+   "ttl_sec": 3600
+  },
+  {
+   "id": "TRI-0300",
+   "name": "非常规请求方法",
+   "stage": "aggregate",
+   "priority": 66,
+   "scope": {},
+   "when": {
+    "all": [
+     {
+      "field": "http.method",
+      "op": "in",
+      "value": "TRACE,TRACK,CONNECT,PROPFIND"
+     }
+    ]
+   },
+   "verdict": "escalate",
+   "action": "escalate",
+   "score_delta": 0.8,
+   "reason": "探测性方法",
+   "mitre": "",
+   "ttl_sec": 3600
+  }
+ ]
+}

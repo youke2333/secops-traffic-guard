@@ -1,0 +1,22 @@
+# Suricata / ET Open 规则示例集（Web 侧）
+#
+# 说明：
+# * 本目录里的规则由 `backend/app/rules/et_loader.py` 解析，转换为本系统统一规则结构后
+#   与内置知识库合并参与检测。
+# * 只解析 `alert` 动作的 `http` 协议规则；`->` 与 `<>` 方向保留，`flow:...to_client`
+#   （响应方向）规则跳过；含十六进制字节块（如 |0a 0d|）、content|base64_decode、
+#   byte_test/byte_jump 等无法等价表达的修饰符时，该 content 会被跳过。
+# * 支持的关键字：msg / content（含 http_uri / http_client_body / http_header / http_cookie /
+#   http_user_agent / http_host / http_referer 修饰符）/ pcre / flow / classtype / threshold /
+#   reference / sid / rev。多个 content 之间按 Suricata 语义做 AND（全部命中才算命中）。
+# * **SID 使用私有段 9000001+**：示例条目参考 ET Open 公开签名（如
+#   "ET WEB_SERVER Possible SQL Injection Attempt"）改写而来；生产接入请从
+#   https://rules.emergingthreats.net/ 拉取官方规则集并保留其原始 SID 与引用信息。
+alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"ET WEB_SERVER Possible SQL Injection Attempt (UNION SELECT)"; flow:established,to_server; content:"union"; http_uri; nocase; content:"select"; http_uri; nocase; pcre:"/union.{0,8}select/i"; classtype:web-application-attack; reference:url,owasp.org/Top10/A03_2021-Injection/; sid:9000001; rev:1;)
+alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"ET WEB_SERVER PHP Webshell Access Attempt"; flow:established,to_server; content:".php"; http_uri; nocase; content:"cmd="; http_uri; nocase; classtype:web-application-attack; reference:url,attack.mitre.org/techniques/T1505/003/; sid:9000002; rev:1;)
+alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"ET WEB_SERVER OS Command Injection Attempt in Body"; flow:established,to_server; content:";cat "; http_client_body; nocase; content:"/etc/passwd"; http_client_body; nocase; classtype:web-application-attack; reference:url,owasp.org/Top10/A03_2021-Injection/; sid:9000003; rev:1;)
+alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"ET WEB_SERVER Directory Traversal Attempt (etc/passwd)"; flow:established,to_server; content:"../"; http_uri; content:"etc/passwd"; http_uri; nocase; classtype:web-application-attack; reference:url,owasp.org/www-community/attacks/Path_Traversal; sid:9000004; rev:1;)
+alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"ET WEB_SERVER Log4Shell JNDI Payload in Header"; flow:established,to_server; pcre:"/\$\{jndi:[^}]{1,120}\}/i"; http_header; classtype:web-application-attack; reference:url,nvd.nist.gov/vuln/detail/CVE-2021-44228; sid:9000005; rev:1;)
+alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"ET WEB_SERVER LDAP Injection Attempt (Auth Bypass)"; flow:established,to_server; content:"*)(uid=*"; http_uri; nocase; classtype:web-application-attack; reference:url,owasp.org/www-community/attacks/LDAP_Injection; sid:9000006; rev:1;)
+# 响应方向规则（本系统只检测入向请求，加载器会跳过，保留以说明筛选策略）
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"ET WEB_SERVER Web Shell Response Detected (to_client)"; flow:established,to_client; content:"uid="; file_data; nocase; classtype:trojan-activity; sid:9000007; rev:1;)
