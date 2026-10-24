@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>漏洞提醒与修复建议 - 智能流量安全检测与分析系统</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body class="subpage">
+    <div class="sub-header">
+        <div class="sub-brand"><span class="logo">◈</span>智能流量安全检测与分析系统</div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sub-status">
+            <span class="badge" id="modeBadge">-</span>
+            <span class="badge" id="fwBadge">-</span>
+            <span class="badge" id="versionBadge">v-</span>
+            <span class="sub-clock" id="pageClock"></span>
+        </div>
+    </div>
+
+    <div class="page-body" data-tabs="off">
+        <!-- ================= 模块 3.4：漏洞提醒 ================= -->
+        <section class="panel">
+            <div class="panel-head">
+                <h2>模块 3.4 漏洞提醒与修复建议</h2>
+                <div class="hint">
+                    流程：资产指纹（nmap/banner） → CVE 知识库匹配 → 生成修复建议 → 状态流转（<span id="kbHint">-</span>）
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="kpi-strip">
+                    <div class="kpi-card danger"><p>未修复漏洞</p><b id="kOpen">0</b></div>
+                    <div class="kpi-card danger"><p>紧急（critical）</p><b id="kCritical">0</b></div>
+                    <div class="kpi-card warn"><p>高危（high）</p><b id="kHigh">0</b></div>
+                    <div class="kpi-card"><p>修复中</p><b id="kFixing">0</b></div>
+                    <div class="kpi-card"><p>已修复</p><b id="kFixed">0</b></div>
+                    <div class="kpi-card"><p>知识库规则数</p><b id="kRules">0</b></div>
+                    <div class="kpi-card"><p>Web 攻击规则数</p><b id="kWebRules">0</b></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 工具栏 ================= -->
+        <section class="panel">
+            <div class="panel-head">
+                <h2>漏洞清单</h2>
+                <div class="toolbar">
+                    <span class="label">严重级</span>
+                    <select class="input" id="sevFilter">
+                        <option value="">全部</option>
+                        <option value="critical">紧急</option>
+                        <option value="high">高危</option>
+                        <option value="medium">中危</option>
+                        <option value="low">低危</option>
+                    </select>
+                    <span class="label">状态</span>
+                    <select class="input" id="statusFilter">
+                        <option value="">全部</option>
+                        <option value="open">待修复</option>
+                        <option value="fixing">修复中</option>
+                        <option value="fixed">已修复</option>
+                        <option value="ignored">已忽略</option>
+                    </select>
+                    <input class="input mid" id="vulnSearch" placeholder="搜索 CVE / 标题 / 主机">
+                    <input class="input mid" id="webappUrl" placeholder="站点地址，如 http://127.0.0.1:8080/（通用 Web 漏扫）">
+                    <button class="btn" id="btnWebScan" type="button">Web 漏扫</button>
+                    <button class="btn" id="btnScanAll" type="button">立即扫描</button>
+                    <button class="btn" id="btnKb" type="button">查看知识库</button>
+                    <button class="btn" id="btnWebKb" type="button">Web 攻击规则</button>
+                    <button class="btn" id="btnExportVulns" type="button">导出 CSV</button>
+                </div>
+            </div>
+            <div class="panel-body panel-scroll">
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>CVE</th>
+                                <th>漏洞标题</th>
+                                <th>主机:端口</th>
+                                <th>服务/版本</th>
+                                <th>CVSS</th>
+                                <th>级别</th>
+                                <th>状态</th>
+                                <th>发现时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vulnBody">
+                            <tr>
+                                <td colspan="9" class="empty-row">加载中…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 扫描任务 ================= -->
+        <section class="panel">
+            <div class="panel-head">
+                <h2>扫描任务</h2>
+                <div class="hint">耗时的指纹/漏洞扫描在后台执行，此处可查看进度与结果</div>
+            </div>
+            <div class="panel-body panel-scroll" style="max-height:3.4rem">
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>任务号</th>
+                                <th>状态</th>
+                                <th>进度</th>
+                                <th>目标数</th>
+                                <th>发现服务</th>
+                                <th>发现漏洞</th>
+                                <th>耗时</th>
+                                <th>开始时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobBody">
+                            <tr>
+                                <td colspan="8" class="empty-row">暂无扫描任务，点击「立即扫描」创建</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/mock.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/page-vuln.js"></script>
+</body>
+
+</html>

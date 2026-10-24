@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>封禁管理 - 智能流量安全检测与分析系统</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body class="subpage">
+    <div class="sub-header">
+        <div class="sub-brand"><span class="logo">◈</span>智能流量安全检测与分析系统</div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sub-status">
+            <span class="badge" id="modeBadge">-</span>
+            <span class="badge" id="fwBadge">-</span>
+            <span class="badge" id="versionBadge">v-</span>
+            <span class="sub-clock" id="pageClock"></span>
+        </div>
+    </div>
+
+    <div class="page-body">
+        <!-- ================= 模块 3.3：封禁与告警 ================= -->
+        <section class="panel" data-tab="封禁概览与手动封禁">
+            <div class="panel-head">
+                <h2>模块 3.3 风险 IP 封禁与恶意流量自动化告警</h2>
+                <div class="hint">
+                    联动链路：检测命中 → 白名单校验 → 防火墙下发（<span id="fwHint">-</span>） → 落库审计 → 多通道通知
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="kpi-strip">
+                    <div class="kpi-card danger"><p>当前生效封禁</p><b id="kActive">0</b></div>
+                    <div class="kpi-card"><p>累计封禁记录</p><b id="kTotal">0</b></div>
+                    <div class="kpi-card"><p>白名单条目</p><b id="kWhitelist">0</b></div>
+                    <div class="kpi-card"><p>处置动作（时间线）</p><b id="kActions">0</b></div>
+                    <div class="kpi-card warn"><p>已配置告警通道</p><b id="kChannels">0</b></div>
+                    <div class="kpi-card"><p>防火墙模式</p><b id="kDryRun">-</b></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 手动封禁表单 ================= -->
+        <section class="panel" data-tab="封禁概览与手动封禁">
+            <div class="panel-head">
+                <h2>手动封禁（人工补充处置）</h2>
+                <div class="hint">封禁前先做白名单校验；支持 IP 与 CIDR；TTL 到期自动解封</div>
+            </div>
+            <div class="panel-body">
+                <div class="toolbar">
+                    <span class="label">目标 IP/CIDR</span>
+                    <input class="input mid" id="manualIp" placeholder="例如 203.0.113.66 或 203.0.113.0/24">
+                    <span class="label">原因</span>
+                    <input class="input mid" id="manualReason" placeholder="例如 外部扫描 + 暴力破解尝试">
+                    <span class="label">封禁时长</span>
+                    <select class="input" id="manualTtl">
+                        <option value="600">10 分钟</option>
+                        <option value="1800" selected>30 分钟</option>
+                        <option value="3600">1 小时</option>
+                        <option value="21600">6 小时</option>
+                        <option value="86400">1 天</option>
+                    </select>
+                    <button class="btn btn-danger" id="btnManualBlock" type="button">立即封禁</button>
+                    <button class="btn" id="btnReap" type="button">清理到期封禁</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 封禁表（并入概览页签，紧随手动封禁表单） ================= -->
+        <section class="panel" data-tab="封禁概览与手动封禁">
+            <div class="panel-head">
+                <h2>封禁记录（实时生效）</h2>
+                <div class="toolbar">
+                    <label class="label"><input type="checkbox" id="chkActiveOnly" checked> 仅显示生效中</label>
+                    <button class="btn" id="btnExportBlocks" type="button">导出 CSV</button>
+                </div>
+            </div>
+            <div class="panel-body panel-scroll">
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>源 IP</th>
+                                <th>类型</th>
+                                <th>级别</th>
+                                <th>原因</th>
+                                <th>来源</th>
+                                <th>创建时间</th>
+                                <th>剩余时长</th>
+                                <th>命中次数</th>
+                                <th>报告</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blockBody">
+                            <tr>
+                                <td colspan="10" class="empty-row">加载中…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <!-- ================= 白名单 + 告警通道 + 处置时间线 =================
+             页签名按"联动配置（谁不处理、出事了通知谁）+ 处置审计（流水）"来取，
+             不再带"封禁记录"字样——记录已并入上一个页签。 -->
+        <div class="page-body grid-3" style="padding:0" data-tab="联动配置与处置审计">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>白名单（误报抑制）</h2>
+                    <div class="hint">命中白名单的 IP 永不被自动封禁</div>
+                </div>
+                <div class="panel-body">
+                    <div class="toolbar" style="margin-bottom:0.1rem">
+                        <input class="input small" id="wlCidr" placeholder="IP 或 CIDR">
+                        <input class="input small" id="wlNote" placeholder="备注">
+                        <button class="btn" id="btnAddWhitelist" type="button">添加</button>
+                    </div>
+                    <div class="panel-scroll" style="max-height:4.4rem">
+                        <table class="grid-table">
+                            <thead>
+                                <tr>
+                                    <th>网段</th>
+                                    <th>备注</th>
+                                    <th>来源</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="whitelistBody">
+                                <tr>
+                                    <td colspan="4" class="empty-row">加载中…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>告警通知通道</h2>
+                    <button class="btn" id="btnNotifyTest" type="button">发送测试告警</button>
+                </div>
+                <div class="panel-body">
+                    <div id="channelList" class="panel-scroll" style="max-height:2.2rem">加载中…</div>
+                    <h4 style="color:#00d8ff;font-size:0.16rem;margin:0.12rem 0 0.06rem">最近发送记录</h4>
+                    <ul class="timeline" id="notifyHistory" style="max-height:3rem">
+                        <li>加载中…</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>处置时间线（审计流水）</h2>
+                    <div class="hint">封禁 / 解封 / 白名单变更</div>
+                </div>
+                <div class="panel-body">
+                    <ul class="timeline" id="disposalList">
+                        <li>加载中…</li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <section class="panel" data-tab="安全事件报告">
+            <div class="panel-head">
+                <h2>安全事件报告</h2>
+                <div class="hint">按 IP 汇总封禁记录、威胁事件与告警；自包含 HTML，可用浏览器打印为 PDF。</div>
+            </div>
+            <div class="panel-body panel-scroll">
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>生成时间</th>
+                                <th>IP</th>
+                                <th>证据 SHA-256</th>
+                                <th>操作人</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportBody">
+                            <tr><td colspan="5" class="empty-row">加载中…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/mock.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/page-block.js"></script>
+</body>
+
+</html>
+

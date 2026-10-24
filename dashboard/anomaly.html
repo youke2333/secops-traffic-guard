@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>异常端口流量检测 - 智能流量安全检测与分析系统</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body class="subpage">
+    <div class="sub-header">
+        <div class="sub-brand"><span class="logo">◈</span>智能流量安全检测与分析系统</div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sub-status">
+            <span class="badge" id="modeBadge">-</span>
+            <span class="badge" id="fwBadge">-</span>
+            <span class="badge" id="versionBadge">v-</span>
+            <span class="sub-clock" id="pageClock"></span>
+        </div>
+    </div>
+
+    <div class="page-body">
+        <!-- ================= 模块 3.2：异常端口检测 ================= -->
+        <section class="panel" data-tab="异常概览与事件">
+            <div class="panel-head">
+                <h2>模块 3.2 异常端口流量检测</h2>
+                <div class="hint">检测算法：EWMA 稳健 Z-score（端口级基线） + 标准端口白名单 + Isolation Forest 复核</div>
+            </div>
+            <div class="panel-body">
+                <div class="kpi-strip">
+                    <div class="kpi-card danger"><p>异常端口数</p><b id="kAnomalyPorts">0</b></div>
+                    <div class="kpi-card warn"><p>非标准端口数</p><b id="kNonStd">0</b></div>
+                    <div class="kpi-card"><p>24h 告警总数</p><b id="kAlerts">0</b></div>
+                    <div class="kpi-card"><p>其中已自动封禁</p><b id="kBlocked">0</b></div>
+                    <div class="kpi-card danger"><p>Web 攻击告警</p><b id="kWebAlerts">0</b></div>
+                    <div class="kpi-card danger"><p>直达告警（致命规则）</p><b id="kDirectAlerts">0</b></div>
+                    <div class="kpi-card warn"><p>聚合抑制信号</p><b id="kSuppressed">0</b></div>
+                    <div class="kpi-card"><p>Z 值阈值</p><b id="kThreshold">-</b></div>
+                    <div class="kpi-card"><p>统计窗口</p><b id="kWindow">-</b></div>
+                    <div class="kpi-card"><p>聚合阈值（风险分）</p><b id="kScoreThreshold">-</b></div>
+                </div>
+                <div class="hint" id="scoringHint">评分机制：每条命中生成一个 signal（权重 = 严重度 × 置信度），
+                    单条权重 ≥ 6.0（critical + 高置信度）立即直达告警；否则在 300s 滑动窗口内累计，
+                    超过阈值才告警；窗口内的信号（含被抑制的）都可在「阈值与信号」面板查看。</div>
+            </div>
+        </section>
+
+        <!-- ================= 阈值管理 + 抑制信号（v2） ================= -->
+        <section class="panel" data-tab="阈值与信号">
+            <div class="panel-head">
+                <h2>阈值与信号（自适应阈值 / 聚合抑制可见）</h2>
+                <div class="toolbar">
+                    <button class="btn" id="btnThresholds" type="button">阈值管理</button>
+                    <button class="btn" id="btnSignals" type="button">全部信号</button>
+                    <button class="btn" id="btnSuppressed" type="button">仅被抑制</button>
+                    <button class="btn" id="btnRecompute" type="button">立即重算阈值</button>
+                    <button class="btn" id="btnRuleSources" type="button">规则来源</button>
+                    <button class="btn" id="btnAiReview" type="button">AI 流量研判</button>
+                </div>
+            </div>
+            <div class="panel-body panel-scroll">
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>源 IP</th>
+                                <th>命中规则</th>
+                                <th>类型</th>
+                                <th>级别</th>
+                                <th>权重</th>
+                                <th>是否直达</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signalBody">
+                            <tr>
+                                <td colspan="8" class="empty-row">加载中…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 端口基线明细（核心表） ================= -->
+        <section class="panel" data-tab="端口基线">
+            <div class="panel-head">
+                <h2>端口基线明细（当前值 vs 历史基线）</h2>
+                <div class="toolbar">
+                    <div class="btn-group" id="filterGroup">
+                        <button class="btn active" data-filter="all" type="button">全部端口</button>
+                        <button class="btn" data-filter="anomaly" type="button">仅异常</button>
+                        <button class="btn" data-filter="nonstd" type="button">仅非标准</button>
+                    </div>
+                    <input class="input small" id="portSearch" placeholder="端口号搜索">
+                    <button class="btn" id="btnExportPorts" type="button">导出 CSV</button>
+                </div>
+            </div>
+            <div class="panel-body panel-scroll">
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>端口</th>
+                                <th>协议</th>
+                                <th>类型</th>
+                                <th>当前 pps</th>
+                                <th>当前带宽</th>
+                                <th>连接数</th>
+                                <th>基线均值 pps</th>
+                                <th>偏离倍数</th>
+                                <th>Z 值</th>
+                                <th>主要来源</th>
+                                <th>处置</th>
+                            </tr>
+                        </thead>
+                        <tbody id="portBody">
+                            <tr>
+                                <td colspan="11" class="empty-row">加载中…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 事件类型分布 + 异常事件处置 ================= -->
+        <div class="page-body grid-2-1" style="padding:0" data-tab="异常概览与事件">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>异常事件列表（近 24h）</h2>
+                    <div class="hint">可查看证据、一键封禁或确认关闭</div>
+                </div>
+                <div class="panel-body panel-scroll">
+                    <div class="table-wrap">
+                        <table class="grid-table">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>类型</th>
+                                    <th>级别</th>
+                                    <th>源 IP</th>
+                                    <th>端口</th>
+                                    <th>评分</th>
+                                    <th>风险分（聚合）</th>
+                                    <th>直达</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eventBody">
+                                <tr>
+                                    <td colspan="10" class="empty-row">加载中…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>事件类型占比</h2>
+                    <div class="hint">按检测类别统计近 24h 告警</div>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-box pie" id="typeChart"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="lib/echarts.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/mock.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/page-anomaly.js"></script>
+</body>
+
+</html>
+

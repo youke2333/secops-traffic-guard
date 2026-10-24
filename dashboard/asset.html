@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>资产管理 - 智能流量安全检测与分析系统</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body class="subpage">
+    <div class="sub-header">
+        <div class="sub-brand"><span class="logo">◈</span>智能流量安全检测与分析系统</div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sub-status">
+            <span class="badge" id="modeBadge">-</span>
+            <span class="badge" id="fwBadge">-</span>
+            <span class="badge" id="versionBadge">v-</span>
+            <span class="sub-clock" id="pageClock"></span>
+        </div>
+    </div>
+
+    <div class="page-body" data-tabs="off">
+        <!-- ================= 模块 3.5：资产管理 ================= -->
+        <section class="panel">
+            <div class="panel-head">
+                <h2>模块 3.5 资产管理（流量被动发现 + 主动指纹识别）</h2>
+                <div class="hint">
+                    被动：从流量学习「主机 → 开放端口」；主动：nmap/banner 指纹 + CVE 匹配 + 风险评级
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="kpi-strip">
+                    <div class="kpi-card"><p>在管资产总数</p><b id="kAssets">0</b></div>
+                    <div class="kpi-card danger"><p>紧急风险</p><b id="kCritical">0</b></div>
+                    <div class="kpi-card warn"><p>高危风险</p><b id="kHigh">0</b></div>
+                    <div class="kpi-card"><p>中危风险</p><b id="kMedium">0</b></div>
+                    <div class="kpi-card"><p>低危风险</p><b id="kLow">0</b></div>
+                    <div class="kpi-card"><p>本页开放端口数</p><b id="kPorts">0</b></div>
+                </div>
+            </div>
+        </section>
+
+        <div class="page-body grid-2-1" style="padding:0">
+            <!-- ================= 资产台账 ================= -->
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>资产台账</h2>
+                    <div class="toolbar">
+                        <select class="input" id="riskFilter">
+                            <option value="">全部风险等级</option>
+                            <option value="critical">紧急</option>
+                            <option value="high">高危</option>
+                            <option value="medium">中危</option>
+                            <option value="low">低危</option>
+                        </select>
+                        <input class="input small" id="assetSearch" placeholder="IP / 标签搜索">
+                        <button class="btn" id="btnExportAssets" type="button">导出 CSV</button>
+                    </div>
+                </div>
+                <div class="panel-body panel-scroll" style="max-height:7.6rem">
+                    <div class="table-wrap">
+                        <table class="grid-table">
+                            <thead>
+                                <tr>
+                                    <th>IP</th>
+                                    <th>主机名</th>
+                                    <th>OS 推断</th>
+                                    <th>风险</th>
+                                    <th>开放端口</th>
+                                    <th>业务标签</th>
+                                    <th>告警</th>
+                                    <th>漏洞</th>
+                                    <th>最近活跃</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assetBody">
+                                <tr>
+                                    <td colspan="10" class="empty-row">加载中…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= 统计图 ================= -->
+            <div class="asset-side">
+                <section class="panel">
+                    <div class="panel-head">
+                        <h2>风险等级分布</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div class="chart-box rings" id="riskChart"></div>
+                    </div>
+                </section>
+                <section class="panel">
+                    <div class="panel-head">
+                        <h2>端口暴露面 TOP</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div class="chart-box rings" id="portChart"></div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="lib/echarts.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/mock.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/page-asset.js"></script>
+</body>
+
+</html>

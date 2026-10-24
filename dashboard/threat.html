@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>威胁告警 - 智能流量安全检测与分析系统</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body class="subpage">
+    <div class="sub-header">
+        <div class="sub-brand"><span class="logo">◈</span>智能流量安全检测与分析系统</div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sub-status">
+            <span class="badge" id="modeBadge">-</span>
+            <span class="badge" id="fwBadge">-</span>
+            <span class="badge" id="versionBadge">v-</span>
+            <span class="sub-clock" id="pageClock"></span>
+        </div>
+    </div>
+
+    <div class="page-body" data-tabs="off">
+        <section class="panel">
+            <div class="panel-head">
+                <h2>威胁告警 · 可疑流量明细</h2>
+                <div class="hint">聚合抑制的命中也会保留；详情区分 L0 元数据 / L1 完整请求。影子模式只记录不处置。</div>
+            </div>
+            <div class="panel-body">
+                <div class="kpi-strip">
+                    <div class="kpi-card"><p>近 24h 事件</p><b id="kThreats">0</b></div>
+                    <div class="kpi-card warn"><p>其中已告警</p><b id="kAlerted">0</b></div>
+                    <div class="kpi-card danger"><p>高危 / 紧急</p><b id="kHigh">0</b></div>
+                    <div class="kpi-card"><p>当前筛选结果</p><b id="kFiltered">0</b></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <h2>筛选</h2>
+                <div class="toolbar">
+                    <button class="btn" id="btnRefresh" type="button">刷新</button>
+                    <button class="btn" id="btnExport" type="button">导出 CSV</button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="filter-bar">
+                    <select class="input" id="fHours">
+                        <option value="1">近 1 小时</option>
+                        <option value="24" selected>近 24 小时</option>
+                        <option value="168">近 7 天</option>
+                        <option value="720">近 30 天</option>
+                        <option value="">全部留存</option>
+                    </select>
+                    <select class="input" id="fSeverity">
+                        <option value="">全部级别</option>
+                        <option value="critical">紧急</option>
+                        <option value="high">高危</option>
+                        <option value="medium">中危</option>
+                        <option value="low">低危</option>
+                    </select>
+                    <select class="input" id="fDirection">
+                        <option value="">全部方向</option>
+                        <option value="inbound">外到内</option>
+                        <option value="internal">内到内</option>
+                        <option value="outbound">内到外</option>
+                        <option value="unknown">未知</option>
+                    </select>
+                    <select class="input" id="fStatus">
+                        <option value="">全部状态</option>
+                        <option value="alerted">仅已告警</option>
+                        <option value="unalerted">仅未告警（被抑制）</option>
+                        <option value="blocked">仅已封禁 IP</option>
+                    </select>
+                    <select class="input" id="fTier">
+                        <option value="">全部档位</option>
+                        <option value="core">core</option>
+                        <option value="extended">extended</option>
+                        <option value="lab">lab（仅演练）</option>
+                    </select>
+                    <select class="input" id="fCategory">
+                        <option value="">全部类别</option>
+                    </select>
+                    <input class="input" id="fSrcIp" placeholder="源 IP">
+                    <input class="input" id="fDstIp" placeholder="目的 IP">
+                    <input class="input grow" id="fQuery" placeholder="关键词：路径 / 规则 ID / 消息">
+                    <button class="btn btn-primary" id="btnSearch" type="button">查询</button>
+                    <button class="btn" id="btnReset" type="button">重置</button>
+                </div>
+                <div class="hint" id="tagHint">标签筛选：点击表格中的标签即可筛选（再次点击取消）。</div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <h2>威胁事件</h2>
+                <div class="hint" id="pageHint">加载中…</div>
+            </div>
+            <div class="panel-body panel-scroll">
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>源 IP</th>
+                                <th>目的</th>
+                                <th>类别</th>
+                                <th>级别</th>
+                                <th>方向</th>
+                                <th>规则 / 档位</th>
+                                <th>标签</th>
+                                <th>处置</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="threatBody">
+                            <tr><td colspan="10" class="empty-row">加载中…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="toolbar" style="justify-content:flex-end;margin-top:8px">
+                    <button class="btn" id="btnPrev" type="button">上一页</button>
+                    <span class="hint" id="pageInfo">第 1 页</span>
+                    <button class="btn" id="btnNext" type="button">下一页</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/mock.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/page-threat.js"></script>
+</body>
+
+</html>
+

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>智能流量安全检测与分析系统</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body>
+    <div class="main">
+
+        <!-- ============ 头部：时钟 / 标题 / 运行状态 ============ -->
+        <div class="header">
+            <div class="header-left" id="clock"></div>
+            <div class="header-cen">
+                <h1>智能流量安全检测与分析系统</h1>
+            </div>
+            <div class="header-right">
+                <span class="badge badge-ok" id="modeBadge">初始化中</span>
+                <span class="badge badge-warn" id="fwBadge">-</span>
+                <span class="badge" id="versionBadge">v-</span>
+                <button class="btn" id="btnSound" type="button">告警音：关</button>
+                <button class="btn" id="btnScan" type="button">立即扫描</button>
+            </div>
+        </div>
+
+        <!-- ============ 模块导航（布局内横向条，不遮挡任何面板） ============ -->
+        <nav class="dash-nav" id="dashNav">
+            <a class="dash-nav-item" href="traffic.html" title="模块 3.1 实时动态流量监控">
+                <b>3.1</b><span>流量监控</span>
+            </a>
+            <a class="dash-nav-item" href="threat.html" title="威胁告警：可疑流量明细与请求证据">
+                <b>3.2</b><span>威胁告警</span>
+            </a>
+            <a class="dash-nav-item" href="block.html" title="封禁管理：封禁 / 白名单 / 安全事件报告">
+                <b>3.3</b><span>封禁管理</span>
+            </a>
+            <a class="dash-nav-item" href="rules.html" title="规则管理：规则包 / 档位 / 匹配引擎">
+                <b>3.4</b><span>规则管理</span>
+            </a>
+            <a class="dash-nav-item" href="vuln.html" title="模块 3.5 漏洞提醒与修复建议">
+                <b>3.5</b><span>漏洞提醒</span>
+            </a>
+            <a class="dash-nav-item" href="asset.html" title="模块 3.6 资产管理">
+                <b>3.6</b><span>资产管理</span>
+            </a>
+
+            <!-- 本页功能切换：一次只展示一个功能（态势总览 / 硬件资源） -->
+            <div class="view-switch" id="viewSwitch" role="tablist">
+                <button class="vs-btn active" type="button" role="tab"
+                        data-view="overview">态势总览</button>
+                <button class="vs-btn" type="button" role="tab"
+                        data-view="resource">硬件资源</button>
+            </div>
+        </nav>
+
+        <div class="content" id="overviewPane">
+            <!-- ============ 左列：核心指标 / 异常端口 / 事件类型 ============ -->
+            <div class="content-left fl">
+                <div class="left-top panel">
+                    <div class="title"><span>实时核心指标</span></div>
+                    <div class="kpi-grid">
+                        <div class="kpi">
+                            <p>当前总带宽</p>
+                            <span class="value" id="kpiBps">0 bps</span>
+                        </div>
+                        <div class="kpi">
+                            <p>带宽利用率</p>
+                            <span class="value" id="kpiUtil">0.00 %</span>
+                            <div class="progress"><i id="kpiUtilBar" style="width:0%"></i></div>
+                        </div>
+                        <div class="kpi">
+                            <p>包速率</p>
+                            <span class="value" id="kpiPps">0 pps</span>
+                        </div>
+                        <div class="kpi">
+                            <p>并发连接</p>
+                            <span class="value" id="kpiConns">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="left-center panel">
+                    <div class="title"><span>异常端口流量 TOP</span></div>
+                    <div class="chart" id="chartPorts"></div>
+                </div>
+
+                <div class="left-bottom panel">
+                    <div class="title"><span>安全事件类型分布</span></div>
+                    <div class="chart" id="chartCategories"></div>
+                </div>
+            </div>
+
+            <!-- ============ 中列：统计条 / 实时趋势 / 来源 & 处置 ============ -->
+            <div class="content-center fl">
+                <div class="center-top panel">
+                    <div class="stat-strip">
+                        <div class="stat">
+                            <p>累计数据包</p><span id="statPackets">0</span>
+                        </div>
+                        <div class="stat">
+                            <p>累计流量</p><span id="statBytes">0 B</span>
+                        </div>
+                        <div class="stat">
+                            <p>安全告警</p><span id="statAlerts">0</span>
+                        </div>
+                        <div class="stat">
+                            <p>封禁中 IP</p><span id="statBlocked">0</span>
+                        </div>
+                        <div class="stat">
+                            <p>在管资产</p><span id="statAssets">0</span>
+                        </div>
+                        <div class="stat">
+                            <p>待修复漏洞</p><span id="statVulns">0</span>
+                        </div>
+                    </div>
+                    <div class="risk-line">
+                        <span>整体风险指数</span>
+                        <b id="statRisk">0</b>
+                        <div class="progress"><i id="riskBar" style="width:0%"></i></div>
+                    </div>
+                    <div class="chart chart-trend" id="chartTrend"></div>
+                </div>
+
+                <div class="center-bottom">
+                    <div class="bottom-left panel">
+                        <div class="title"><span>攻击来源 TOP10</span></div>
+                        <div class="chart" id="chartSources"></div>
+                    </div>
+                    <div class="bottom-right panel">
+                        <div class="title"><span>处置时间线</span></div>
+                        <ul class="list-simple" id="disposalList">
+                            <li class="empty">暂无处置动作</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ 右列：封禁表 / 告警播报 / 资产与漏洞 ============ -->
+            <div class="content-right fr">
+                <div class="right-top panel">
+                    <div class="title"><span>风险 IP 实时封禁</span></div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>源 IP</th>
+                                <th>类型</th>
+                                <th>原因</th>
+                                <th>剩余</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blockBody">
+                            <tr>
+                                <td colspan="5" class="empty">暂无封禁记录（系统运行正常）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="right-center panel">
+                    <div class="title"><span>实时安全告警播报</span></div>
+                    <ul class="alert-scroll" id="alertScroll">
+                        <li class="empty">暂无安全告警</li>
+                    </ul>
+                </div>
+
+                <div class="right-bottom panel">
+                    <div id="tab_header">
+                        <ul>
+                            <li class="selected">资产指纹</li>
+                            <li>漏洞提醒</li>
+                        </ul>
+                    </div>
+                    <div id="tab_content">
+                        <div class="dom">
+                            <ul class="list-simple" id="assetList">
+                                <li class="empty">尚未发现资产（等待流量特征学习完成）</li>
+                            </ul>
+                        </div>
+                        <div class="dom" style="display:none">
+                            <ul class="list-simple" id="vulnList">
+                                <li class="empty">暂无未修复漏洞</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 功能二：硬件资源占用（CPU / 内存 / 磁盘 / 网卡） ============ -->
+        <div class="content res-pane" id="resourcePane" style="display:none">
+            <div class="res-col">
+                <div class="panel res-panel">
+                    <div class="title"><span>CPU 使用率</span><b class="res-flag" id="resCpuFlag">--</b></div>
+                    <div class="chart res-gauge" id="resCpuGauge"></div>
+                    <div class="res-meta" id="resCpuMeta">采集等待中…</div>
+                </div>
+                <div class="panel res-panel">
+                    <div class="title"><span>内存使用率</span><b class="res-flag" id="resMemFlag">--</b></div>
+                    <div class="chart res-gauge" id="resMemGauge"></div>
+                    <div class="res-meta" id="resMemMeta">采集等待中…</div>
+                </div>
+            </div>
+
+            <div class="res-col res-col-center">
+                <div class="panel res-panel">
+                    <div class="title"><span>资源占用趋势（近 5 分钟）</span></div>
+                    <div class="chart" id="resTrend"></div>
+                </div>
+                <div class="panel res-panel">
+                    <div class="title"><span>资源明细与越限研判</span></div>
+                    <div class="res-detail" id="resDetail">
+                        <div class="res-empty">采集等待中…</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="res-col">
+                <div class="panel res-panel">
+                    <div class="title"><span>磁盘使用率</span><b class="res-flag" id="resDiskFlag">--</b></div>
+                    <div class="chart res-gauge" id="resDiskGauge"></div>
+                    <div class="res-meta" id="resDiskMeta">采集等待中…</div>
+                </div>
+                <div class="panel res-panel">
+                    <div class="title"><span>网络安全标准色标</span></div>
+                    <div class="res-legend" id="resLegend"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 告警弹窗：检测 → 人工确认 → 隔离（印章海报样式） ============ -->
+    <div id="customModal" class="modal">
+        <div class="modal-content alert-stamp">
+            <span class="close">&times;</span>
+            <div class="stamp-mark" id="alertWatermark" aria-hidden="true">MEDIUM</div>
+
+            <div class="stamp-body">
+                <div class="stamp-eyebrow">SECURITY ALERT</div>
+
+                <div class="stamp-head">
+                    <div class="stamp-main">
+                        <h3 class="stamp-title">恶意流量告警</h3>
+                        <div class="stamp-cat" id="alertCategory">-</div>
+                        <div class="stamp-flow">
+                            <b id="alertSource">-</b>
+                            <span class="arw">→</span>
+                            <b class="dst" id="alertTarget">-</b>
+                        </div>
+                        <p class="stamp-msg" id="alertMessage">-</p>
+                    </div>
+                    <div class="stamp-sev" id="alertSeverity">-</div>
+                </div>
+
+                <div class="stamp-foot">
+                    <div class="stamp-stat"><span>检测时间</span><b class="mono" id="alertTime">-</b></div>
+                    <div class="stamp-stat"><span>检测算法</span><b class="mono" id="alertDetector">-</b></div>
+                    <span class="auto-tag" id="alertAutoBlock">已自动处置</span>
+                    <div class="stamp-actions">
+                        <button class="stamp-btn-ghost" id="dismissButton" type="button">忽略</button>
+                        <button class="stamp-btn-outline" id="detailButton" type="button">查看详情</button>
+                        <button class="stamp-btn-danger" id="isolateButton" type="button">确认隔离该 IP</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="isolationModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <p class="modal-title ok">风险 IP 已下达隔离指令</p>
+            <p class="modal-detail">封禁已写入审计日志；若处于 DRY-RUN 模式，则仅记录未在内核生效。</p>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="lib/echarts.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/mock.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/page-resource.js"></script>
+</body>
+
+</html>
+

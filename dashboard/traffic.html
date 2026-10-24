@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>实时动态流量监控 - 智能流量安全检测与分析系统</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body class="subpage">
+    <div class="sub-header">
+        <div class="sub-brand"><span class="logo">◈</span>智能流量安全检测与分析系统</div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sub-status">
+            <span class="badge" id="modeBadge">-</span>
+            <span class="badge" id="fwBadge">-</span>
+            <span class="badge" id="versionBadge">v-</span>
+            <span class="sub-clock" id="pageClock"></span>
+        </div>
+    </div>
+
+    <div class="page-body">
+        <!-- ================= 模块 3.1：实时指标 + 趋势 ================= -->
+        <section class="panel" data-tab="实时概览与趋势">
+            <div class="panel-head">
+                <h2>模块 3.1 实时动态流量监控</h2>
+                <div class="hint">数据源：<span id="sourceHint">-</span> ｜ 刷新：<span id="refreshHint">SSE 实时</span></div>
+            </div>
+            <div class="panel-body">
+                <div class="toolbar" style="margin-bottom:0.14rem">
+                    <span class="label">时间窗口</span>
+                    <div class="btn-group" id="windowGroup">
+                        <button class="btn active" data-window="60" type="button">最近 1 分钟</button>
+                        <button class="btn" data-window="300" type="button">最近 5 分钟</button>
+                        <button class="btn" data-window="900" type="button">最近 15 分钟</button>
+                    </div>
+                    <span class="label">刷新</span>
+                    <button class="btn active" id="btnStream" type="button">实时（SSE）</button>
+                    <button class="btn" id="btnPause" type="button">暂停画面</button>
+                    <button class="btn" id="btnExportSessions" type="button">导出会话 CSV</button>
+                </div>
+
+                <div class="kpi-strip">
+                    <div class="kpi-card"><p>带宽利用率</p><b id="kUtil">0 %</b></div>
+                    <div class="kpi-card"><p>入站带宽</p><b id="kIn">0 bps</b></div>
+                    <div class="kpi-card"><p>出站带宽</p><b id="kOut">0 bps</b></div>
+                    <div class="kpi-card warn"><p>包速率</p><b id="kPps">0 pps</b></div>
+                    <div class="kpi-card"><p>并发连接</p><b id="kConns">0</b></div>
+                    <div class="kpi-card"><p>活跃源 IP</p><b id="kSrc">0</b></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" data-tab="实时概览与趋势">
+            <div class="panel-head">
+                <h2>带宽利用率 / 包速率趋势</h2>
+                <div class="hint">双 Y 轴：左=带宽，右=包速率；每 500ms 追加一帧</div>
+            </div>
+            <div class="panel-body">
+                <div class="chart-box tall" id="trendChart"></div>
+            </div>
+        </section>
+
+        <!-- ================= 端口流量 + TOP 会话 ================= -->
+        <div class="page-body grid-2" style="padding:0" data-tab="端口与会话">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>端口流量 TOP</h2>
+                    <div class="hint">红色=非标准端口</div>
+                </div>
+                <div class="panel-body">
+                    <div class="chart-box ports" id="portChart"></div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>实时 TOP 会话</h2>
+                    <div class="hint">按累计流量排序，可直接封禁可疑源 IP</div>
+                </div>
+                <div class="panel-body panel-scroll">
+                    <div class="table-wrap">
+                        <table class="grid-table">
+                            <thead>
+                                <tr>
+                                    <th>源</th>
+                                    <th>目的</th>
+                                    <th>协议</th>
+                                    <th>时长</th>
+                                    <th>流量</th>
+                                    <th>速率</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sessionBody">
+                                <tr>
+                                    <td colspan="7" class="empty-row">加载中…</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="lib/echarts.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/mock.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/page-traffic.js"></script>
+</body>
+
+</html>

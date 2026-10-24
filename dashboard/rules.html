@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>规则管理 - 智能流量安全检测与分析系统</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body class="subpage">
+    <div class="sub-header">
+        <div class="sub-brand"><span class="logo">◈</span>智能流量安全检测与分析系统</div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sub-status">
+            <span class="badge" id="modeBadge">-</span>
+            <span class="badge" id="fwBadge">-</span>
+            <span class="badge" id="versionBadge">v-</span>
+            <span class="sub-clock" id="pageClock"></span>
+        </div>
+    </div>
+
+    <div class="page-body">
+        <section class="panel" data-tab="引擎概览与规则包">
+            <div class="panel-head">
+                <h2>规则包与匹配引擎</h2>
+                <div class="toolbar">
+                    <button class="btn" id="btnReload" type="button">重载全部规则</button>
+                    <button class="btn" id="btnRefresh" type="button">刷新</button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="kpi-strip">
+                    <div class="kpi-card"><p>Web 规则总数</p><b id="kRules">0</b></div>
+                    <div class="kpi-card"><p>匹配后端</p><b id="kBackend">-</b></div>
+                    <div class="kpi-card"><p>索引编译耗时</p><b id="kCompile">-</b></div>
+                    <div class="kpi-card"><p>候选/兜底规则</p><b id="kFallback">0</b></div>
+                    <div class="kpi-card"><p>已启用档位</p><b id="kTiers">-</b></div>
+                    <div class="kpi-card warn"><p>影子模式</p><b id="kShadow">-</b></div>
+                </div>
+                <p class="hint" id="engineHint">加载中…</p>
+            </div>
+        </section>
+
+        <section class="panel" data-tab="引擎概览与规则包">
+            <div class="panel-head">
+                <h2>规则包</h2>
+                <div class="hint">规则包条数以磁盘文件为准；selected 为当前档位实际装入 Web 引擎的 HTTP 规则数。</div>
+            </div>
+            <div class="panel-body panel-scroll">
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>规则包</th>
+                                <th>条数</th>
+                                <th>档位分布</th>
+                                <th>已装入</th>
+                                <th>跳过</th>
+                                <th>启用</th>
+                                <th>版本 / 校验和</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packBody">
+                            <tr><td colspan="7" class="empty-row">加载中…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <div class="rule-grid" data-tab="档位与审计">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>规则档位（入侵包）</h2>
+                    <div class="hint">core 默认开；extended 需影子模式标定后开启；lab 只用于演练。</div>
+                </div>
+                <div class="panel-body">
+                    <label class="label"><input type="checkbox" value="core" class="tierBox" checked> core（高置信、低误报）</label><br>
+                    <label class="label"><input type="checkbox" value="extended" class="tierBox"> extended（覆盖完整、未标定）</label><br>
+                    <label class="label"><input type="checkbox" value="lab" class="tierBox"> lab（仅演练，不建议生产）</label><br>
+                    <label class="label"><input type="checkbox" id="chkShadow"> 影子模式：只记录威胁事件，不告警、不封禁</label><br>
+                    <button class="btn btn-primary" id="btnApplyTiers" type="button" style="margin-top:10px">保存并立即生效</button>
+                    <p class="hint" id="tierHint"></p>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>匹配后端</h2>
+                    <div class="hint">RE2 只做候选预筛，最终判定仍由 RulePlan 精匹配完成；未安装时自动回落 python。</div>
+                </div>
+                <div class="panel-body">
+                    <select class="input" id="backendSelect">
+                        <option value="auto">auto（优先 RE2）</option>
+                        <option value="python">python（零依赖）</option>
+                        <option value="re2">re2（生产推荐）</option>
+                    </select>
+                    <button class="btn btn-primary" id="btnApplyBackend" type="button" style="margin-left:8px">切换</button>
+                    <p class="hint" id="backendHint">切换会重建规则索引，期间检测继续使用旧快照。</p>
+                    <pre class="evidence-pre" id="fallbackBox">无降级规则</pre>
+                </div>
+            </section>
+        </div>
+
+        <section class="panel" id="userPanel" data-tab="档位与审计">
+            <div class="panel-head">
+                <h2>用户与审计（admin）</h2>
+                <div class="toolbar">
+                    <button class="btn" id="btnRefreshUsers" type="button">刷新</button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="filter-bar">
+                    <input class="input" id="newUsername" placeholder="用户名（2–64 位）">
+                    <input class="input" id="newDisplayName" placeholder="显示名">
+                    <input class="input" id="newPassword" type="password" placeholder="初始密码（≥10 位，含字母数字）">
+                    <select class="input" id="newRole">
+                        <option value="viewer">viewer（只读）</option>
+                        <option value="analyst">analyst（分析/处置）</option>
+                        <option value="admin">admin（管理）</option>
+                    </select>
+                    <button class="btn btn-primary" id="btnCreateUser" type="button">新建用户</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>状态</th><th>最近登录</th><th>操作</th></tr></thead>
+                        <tbody id="userBody"><tr><td colspan="6" class="empty-row">加载中…</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/mock.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/page-rules.js"></script>
+</body>
+
+</html>
