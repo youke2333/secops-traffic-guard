@@ -1,0 +1,149 @@
+# ============================================================================
+# 智能流量安全检测与分析系统 —— 一键部署编排
+#
+# 使用方式：
+#   1. cp ../backend/.env.example .env 并按需修改（至少确认 DRY_RUN / 告警通道）
+#   2. docker compose up -d --build
+#   3. 打开 http://<服务器IP>:8080 查看大屏；http://<服务器IP>:8080/docs 查看 API 文档
+#
+# 重要提示：
+#   * 默认 DRY_RUN=true，容器不会真正修改宿主机防火墙，可安全试用；
+#   * 若要「真抓包 + 真封禁」，请追加 deploy/docker-compose.host.yml 覆盖：
+#       docker compose -f docker-compose.yml -f docker-compose.host.yml up -d
+#     该覆盖文件为 api 服务开启 network_mode: host 与 NET_ADMIN/NET_RAW 能力。
+# ============================================================================
+name: secops
+
+services:
+  # ---------------------------- 关系库：资产 / 告警 / 封禁 / 漏洞 ----------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: secops-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: secops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secops_change_me}
+      POSTGRES_DB: secops
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secops -d secops"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [secops-net]
+
+  # ---------------------------- 时序库：流量指标长周期存储（可选） ----------------------------
+  tsdb:
+    image: influxdb:2.7-alpine
+    container_name: secops-tsdb
+    restart: unless-stopped
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: secops
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD:-secops_change_me}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-secops}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-traffic}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-secops-influx-token-change-me}
+    volumes:
+      - tsdb-data:/var/lib/influxdb2
+    ports:
+      - "${INFLUX_PORT:-8086}:8086"
+    networks: [secops-net]
+
+  # ---------------------------- 后端：采集 + 检测 + 响应 + API ----------------------------
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: secops-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # 存储
+      DB_URL: postgresql+psycopg2://secops:${POSTGRES_PASSWORD:-secops_change_me}@db:5432/secops
+      INFLUX_URL: http://tsdb:8086
+      INFLUX_TOKEN: ${INFLUX_TOKEN:-secops-influx-token-change-me}
+      INFLUX_ORG: ${INFLUX_ORG:-secops}
+      INFLUX_BUCKET: ${INFLUX_BUCKET:-traffic}
+      # 采集（容器内默认 scapy；如需 eBPF，请配合 host 网络覆盖文件）
+      CAPTURE_MODE: ${CAPTURE_MODE:-scapy}
+      CAPTURE_IFACE: ${CAPTURE_IFACE:-}
+      BPF_FILTER: ${BPF_FILTER:-ip and (tcp or udp)}
+      TICK_INTERVAL_MS: ${TICK_INTERVAL_MS:-500}
+      LINK_SPEED_MBPS: ${LINK_SPEED_MBPS:-1000}
+      # 检测
+      ZSCORE_THRESHOLD: ${ZSCORE_THRESHOLD:-3.5}
+      # 突发告警：100Mbps 起报（低于不判），200Mbps 直达 critical
+      SPIKE_MIN_ABS_BPS: ${SPIKE_MIN_ABS_BPS:-104857600}
+      SPIKE_BPS_THRESHOLD: ${SPIKE_BPS_THRESHOLD:-209715200}
+      SPIKE_DETECT_ENABLED: ${SPIKE_DETECT_ENABLED:-true}
+      IFOREST_ENABLED: ${IFOREST_ENABLED:-true}
+      # 响应
+      DRY_RUN: ${DRY_RUN:-true}
+      AUTO_BLOCK_ENABLED: ${AUTO_BLOCK_ENABLED:-true}
+      AUTO_BLOCK_MIN_SEVERITY: ${AUTO_BLOCK_MIN_SEVERITY:-high}
+      BLOCK_TTL_SEC: ${BLOCK_TTL_SEC:-1800}
+      FIREWALL_BACKEND: ${FIREWALL_BACKEND:-auto}
+      WHITELIST_CIDRS: ${WHITELIST_CIDRS:-127.0.0.1/32,::1/128,169.254.0.0/16,224.0.0.0/4}
+      # 告警
+      ALERT_CHANNELS: ${ALERT_CHANNELS:-log}
+      DINGTALK_WEBHOOK: ${DINGTALK_WEBHOOK:-}
+      WECOM_WEBHOOK: ${WECOM_WEBHOOK:-}
+      GENERIC_WEBHOOK: ${GENERIC_WEBHOOK:-}
+      SYSLOG_ADDRESS: ${SYSLOG_ADDRESS:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_SENDER: ${SMTP_SENDER:-}
+      SMTP_RECIPIENTS: ${SMTP_RECIPIENTS:-}
+      # 鉴权
+      API_TOKEN: ${API_TOKEN:-}          # 机器调用令牌；留空时仅浏览器会话可用（WAF/代理接入必须填）
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+      SESSION_TTL_SEC: ${SESSION_TTL_SEC:-43200}
+      SESSION_IDLE_SEC: ${SESSION_IDLE_SEC:-1800}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # 威胁事件 / 规则包 / 匹配引擎
+      THREAT_STORE_ENABLED: ${THREAT_STORE_ENABLED:-true}
+      THREAT_RETENTION_DAYS: ${THREAT_RETENTION_DAYS:-7}
+      RULESETS_ENABLED: ${RULESETS_ENABLED:-true}
+      RULES_TIERS: ${RULES_TIERS:-core}
+      RULES_SHADOW_MODE: ${RULES_SHADOW_MODE:-false}
+      MATCH_BACKEND: ${MATCH_BACKEND:-auto}
+      PROTECTED_CIDRS: ${PROTECTED_CIDRS:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    cap_add:
+      - NET_RAW        # libpcap 抓包
+      - NET_ADMIN      # iptables/nft 规则下发
+    volumes:
+      - api-data:/app/data
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks: [secops-net]
+
+  # ---------------------------- 前端：nginx 托管大屏 + 反向代理 API（含 SSE 调优） ----------------------------
+  dashboard:
+    image: nginx:1.27-alpine
+    container_name: secops-dashboard
+    restart: unless-stopped
+    depends_on: [api]
+    volumes:
+      - ../dashboard:/usr/share/nginx/html/dashboard:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    networks: [secops-net]
+
+volumes:
+  db-data:
+  tsdb-data:
+  api-data:
+
+networks:
+  secops-net:
+    driver: bridge
