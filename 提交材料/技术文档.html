@@ -721,6 +721,7 @@ CVE 扩展、v6 规则包（入侵 742 / 研判 300 / 病毒 329）五种来源�
     <tr><td>本地开发</td><td><code>uvicorn app.main:app --app-dir backend --port 8000</code></td><td>演示、开发、教学；Windows 自动降级仿真流量</td></tr>
     <tr><td>裸机安装</td><td><code>sudo bash deploy/install.sh --web-profile</code></td><td>Linux 生产：systemd 托管 + setcap 授权 + 可选高保真代理</td></tr>
     <tr><td>容器编排</td><td><code>docker compose up -d --build</code></td><td>一键起 PostgreSQL + InfluxDB + API + nginx；抓宿主机流量叠加 <code>docker-compose.host.yml</code></td></tr>
+    <tr><td>托管沙箱<br>（在线演示）</td><td><code>python serve.py</code>（端口取 <code>PORT</code> 环境变量）</td><td>单端口 HTTP 服务，供评审直接访问；本次提交的演示站即以该方式运行</td></tr>
   </tbody>
 </table>
 <pre><code># 最小复现步骤（Windows / macOS / Linux 均可）
@@ -815,7 +816,7 @@ cp backend/.env.example .env                                        # 按需修�
     <tr><td>代码仓库</td><td>【GitHub / Gitee 地址】</td><td>Public 仓库，含完整提交历史与 README</td></tr>
     <tr><td>技术文档</td><td>本文档（PDF，≤30 页）</td><td>项目概述、需求、架构、AI 方案、实现、测试部署、总结</td></tr>
     <tr><td>演示视频</td><td>5~8 分钟，1080p，MP4</td><td>项目介绍 + 核心功能演示 + AI 亮点（脚本见仓库 <code>提交材料/演示视频脚本.md</code>）</td></tr>
-    <tr><td>在线演示</td><td>【公网地址】</td><td>评审期间保持可用，提供评审账号</td></tr>
+    <tr><td>在线演示</td><td>secops-traffic-guard.app.workbuddy.host</td><td>演示模式（仿真流量 + 真实检测链路），免登录，封禁走 DRY_RUN 只留痕</td></tr>
   </tbody>
 </table>
 
