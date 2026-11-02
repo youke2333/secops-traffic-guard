@@ -201,6 +201,8 @@ python -m venv .venv
 
 # 2) 启动后端（Windows 无抓包能力时自动降级为仿真流量）
 .venv/Scripts/python -m uvicorn app.main:app --app-dir backend --port 8000
+#    托管环境（只注入 PORT 变量）可用等价入口：
+#    PORT=8080 python serve.py
 
 # 3) 打开大屏
 #    http://127.0.0.1:8000/          ← 首次访问会跳转 /login.html
