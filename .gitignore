@@ -18,6 +18,8 @@ __pycache__/
 
 # 工具与编辑器本地数据
 .workbuddy/
+.wbapp_*
+*.genie
 
 # 编辑器
 .idea/
