@@ -36,6 +36,8 @@
   h2 { font-size: 12pt; margin: 17px 0 7px; color: #143a5e; }
   h2 .num { color: #5b8cc0; font-weight: 600; margin-right: 6px; }
   h3 { font-size: 10.6pt; margin: 12px 0 5px; color: #1d4b73; }
+  /* 标题不要落在页尾孤立存在（否则会出现"标题在上一页最后一行、内容在下一页"） */
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
   p { margin: 0 0 7px; text-align: justify; }
   ul, ol { margin: 0 0 8px; padding-left: 20px; }
   li { margin-bottom: 3px; }
@@ -110,9 +112,9 @@
   <ol>
     <li><span class="n">1</span>项目概述<span class="d">背景、定位、目标用户、成果概览</span></li>
     <li><span class="n">2</span>需求分析<span class="d">角色场景、功能性/非功能性需求、需求取舍</span></li>
-    <li><span class="n">3</span>系统架构设计<span class="d">分层架构、模块职责、数据流、数据模型、接口设计</span></li>
+    <li><span class="n">3</span>系统架构设计<span class="d">分层架构、模块职责、数据流、数据模型、接口设计、云端接入边界</span></li>
     <li><span class="n">4</span>AI 技术方案<span class="d">能力落点、模型选型、集成方式、Prompt 与安全边界、降级链、优化策略</span></li>
-    <li><span class="n">5</span>核心功能实现<span class="d">大屏、告警、检测算法、封禁闭环、规则引擎、漏洞研判、鉴权</span></li>
+    <li><span class="n">5</span>核心功能实现<span class="d">大屏、告警、检测算法、封禁闭环、规则引擎、漏洞研判、鉴权、云端协同</span></li>
     <li><span class="n">6</span>测试与部署<span class="d">四层测试、用例分布、端到端实测、三种部署方式</span></li>
     <li><span class="n">7</span>总结与展望<span class="d">创新点、不足与后续规划</span></li>
     <li><span class="n">A</span>附录<span class="d">复现指引、材料清单、环境变量速查</span></li>
@@ -179,7 +181,7 @@
 <table>
   <thead><tr><th style="width:22%">维度</th><th>实测数据</th></tr></thead>
   <tbody>
-    <tr><td>代码规模</td><td>后端 84 个 Python 模块（<code>backend/app</code> 下 12 个业务域）；大屏 14 个 JS 模块 + 10 个页面</td></tr>
+    <tr><td>代码规模</td><td>后端 84 个 Python 模块（<code>backend/app</code> 下 12 个业务域）；大屏 15 个 JS 模块 + 11 个页面</td></tr>
     <tr><td>规则能力</td><td>Web 知识库 171 条 / 21 大类；入侵包 742 条、研判包 300 条、病毒特征 329 条；统一 RulePlan 预编译 436 条正则，构建耗时 59.9 ms</td></tr>
     <tr><td>测试规模</td><td><code>pytest</code> 226 个用例；<code>verify_runtime.py</code> 83 项端到端断言；<code>verify_layout.js</code> 128 项观感断言</td></tr>
     <tr><td>部署形态</td><td>本地 3 条命令 / 裸机 systemd 脚本 / Docker Compose（PostgreSQL + InfluxDB + API + nginx）</td></tr>
@@ -189,7 +191,8 @@
 <h2><span class="num">1.5</span>本文档结构</h2>
 <p>第 2 章从角色与场景出发给出需求与取舍；第 3 章描述分层架构、数据流与接口契约；
 <b>第 4 章为 AI 技术专章</b>，回答"为什么选这个模型、怎么接进来、怎么优化"；
-第 5 章按功能模块讲实现细节并配真实运行截图；第 6 章给出测试方法与部署路径；第 7 章总结创新点与后续规划。</p>
+第 5 章按功能模块讲实现细节并配真实运行截图；第 6 章给出测试方法与部署路径；第 7 章总结创新点与后续规划。
+其中 <b>3.7 与 5.10</b> 说明云端协同的接入边界与实现，这两节只讲"协作"，不改变"检测在本机"这一主干。</p>
 
 <!-- ============ 2 需求分析 ============ -->
 <h1 class="ch"><span class="num">2</span>需求分析</h1>
@@ -213,6 +216,7 @@
     <tr><td>FR-08</td><td>漏洞提醒</td><td>按 CVE 与版本区间匹配，给出修复建议</td><td class="c">中</td><td>scanner/ + analysis/vuln_advisor.py</td></tr>
     <tr><td>FR-09</td><td>资产台账</td><td>自动发现内网资产、端口与服务指纹</td><td class="c">中</td><td>scanner/</td></tr>
     <tr><td>FR-10</td><td>登录与审计</td><td>全站鉴权、CSRF 防护、操作留痕、三角色</td><td class="c">中</td><td>auth/</td></tr>
+    <tr><td>FR-11</td><td>云端协同（可选增强）</td><td>换设备可用同一身份查到归档；证据可分享给他人查看；无本地 Key 也能用模型；云端不可用不影响检测</td><td class="c">低</td><td>dashboard/cloud.html + js/cloud.js</td></tr>
   </tbody>
 </table>
 
@@ -250,7 +254,7 @@
 
 <div class="layers">
   <div class="layer"><div class="lb">展示层</div><div class="lc">
-    <em>dashboard/</em>　10 个页面 + 14 个 JS 模块（原生 JS + ECharts，无构建链）　·　数据源三级降级：SSE 推送 → 轮询 → 演示数据
+    <em>dashboard/</em>　11 个页面 + 15 个 JS 模块（原生 JS + ECharts，无构建链）　·　数据源三级降级：SSE 推送 → 轮询 → 演示数据
   </div></div>
   <div class="layer"><div class="lb">接口层</div><div class="lc">
     <em>app/api/</em>　83 个 REST + 2 个 SSE 流　·　会话/CSRF 与 X-API-Token 双鉴权　·　Pydantic 出入参契约（自动生成 /docs）
@@ -343,6 +347,41 @@
 <b>HTTP 轮询</b>（SSE 断开时降级，2 s 一次）→ <b>本地演示数据</b>（<code>js/mock.js</code> 接管全部接口，
 并周期性模拟端口扫描/暴破/突发流量剧本，右上角标注「演示数据」）。页面层只依赖统一的 <code>SecApi</code> 接口，
 不感知当前处于哪一级，因此功能与观感在三态下保持一致。</p>
+
+<h2><span class="num">3.7</span>云端协同：检测留在本机，协同交给云端</h2>
+<p>系统的主链路是「一台机器、一个运维」的单机闭环，这个判断没有变。但现场有三件事是单机做不到的：
+<b>换台机器还能查历史</b>、<b>把证据发给同事或评审</b>、<b>不配 API Key 也能用模型</b>。
+这三件事恰好是云服务擅长的，于是单独做了一个页面 <code>dashboard/cloud.html</code>（模块 3.7 云端协同），
+把「协同」外包给云端，而<b>采集、检测、研判、封禁、规则全部留在本地</b> ——
+云端不可用时，前 12 章的检测能力完全不受影响。</p>
+
+<table>
+  <thead><tr><th style="width:18%">云端能力</th><th style="width:24%">落点</th><th>为什么必须放云端</th></tr></thead>
+  <tbody>
+    <tr><td>身份</td><td>邮箱验证码登录</td><td>换设备后要能认出是同一个人，本地账号体系跨不了机器</td></tr>
+    <tr><td>归档</td><td>云数据库表 <code>secops_archive</code></td><td>告警与封禁的价值在"事后追溯"，而事后往往已经不在同一台机器上</td></tr>
+    <tr><td>证据</td><td>对象存储 <code>users/&lt;uid&gt;/reports/</code></td><td>报告要能发给别人看，本地文件系统给不出可分享的地址</td></tr>
+    <tr><td>模型</td><td>托管大模型 <code>deepseek-v4.1-flash</code></td><td>免密钥调用，省掉"每个评审都要先申请一个 API Key"的门槛</td></tr>
+  </tbody>
+</table>
+
+<p><b>四道隔离闸门</b>保证云端不成为新的泄露面：</p>
+<ul>
+  <li><b>库级</b>：<code>secops_archive.owner_id TEXT DEFAULT auth.uid()</code> + <code>ENABLE ROW LEVEL SECURITY</code> + owner 策略，
+      前端<b>永不传</b> <code>owner_id</code>，换账号只可能查到自己的行；</li>
+  <li><b>路径级</b>：证据只写 <code>users/&lt;当前 uid&gt;/reports/</code>，同一 Bucket 下别人的前缀读不到；</li>
+  <li><b>链接级</b>：对外分享用 600 秒签名直链，点击时才生成，不落盘、不写日志；</li>
+  <li><b>数据级</b>：只上传结构化字段与统计口径（类型 / 级别 / 来源 / 目标 / 评分 / 规则），<b>不上传告警原文</b>；
+      进模型的来源 IP 统一掩成 <code>a.b.*.*</code>，与后端 AI 研判的脱敏口径保持一致。</li>
+</ul>
+
+<div class="note">
+  <b>三个踩过的坑，也是这类集成最容易漏的细节</b>：① 云端前置 WAF 会拦请求体里的攻击特征 ——
+  告警原文含有 SQL 注入片段时，归档请求会被直接 403，所以只同步结构化字段；② 用户上传的 HTML 一律以
+  <code>text/plain</code> 下发（防共享域名上的存储型 XSS），签名直链直接打开只会看到源码，必须由前端取回后
+  按 HTML 重新渲染；③ 平台存储不认 <code>upsert</code>，同名对象报 <code>KEY_ALREADY_EXISTS</code>，
+  改「先删后传」才是覆盖语义。
+</div>
 
 <!-- ============ 4 AI 技术方案 ============ -->
 <h1 class="ch"><span class="num">4</span>AI 技术方案</h1>
@@ -629,6 +668,48 @@ CVE 扩展、v6 规则包（入侵 742 / 研判 300 / 病毒 329）五种来源�
   </div>
 </div>
 
+<h2><span class="num">5.10</span>云端协同：归档、证据与值班简报</h2>
+<figure>
+  <img src="screenshots_jpg/12-cloud.jpg" alt="云端协同">
+  <figcaption><b>图 5-12</b>　云端协同：云端连接与身份、告警/封禁归档、证据报告存储、AI 值班简报（四块各自独立降级，互不牵连）</figcaption>
+</figure>
+<p>这一页有四个区块，各自对应云服务的一项能力，<b>任一区块不可用都不影响其余三块</b>：</p>
+<ul>
+  <li><b>云端身份</b>：邮箱验证码登录，登录后本地只保存会话，不缓存任何云端数据；退出即清。</li>
+  <li><b>告警 / 封禁归档</b>：把当前告警与封禁记录按结构化字段写入云数据库，跨设备可查；列表带创建时间与来源。</li>
+  <li><b>证据报告存储</b>：把第 5.6 节生成的九章报告上传云端，支持「查看 / 下载 / 复制链接 / 删除」四种动作。</li>
+  <li><b>AI 值班简报</b>：把统计口径（类型分布、级别分布、脱敏来源）交给托管模型，生成一段可直接贴进日报的中文研判。</li>
+</ul>
+
+<p>实现上有三个不显眼但必须做对的点：</p>
+<ul>
+  <li><b>「查看」不是打开链接，而是重渲染</b>：签名直链的 <code>Content-Type</code> 恒为 <code>text/plain</code>，
+      浏览器只会显示源码。因此「查看」由前端取回文本后按 <code>text/html</code> 写进新标签页；
+      而新窗口必须在<b>点击的同一轮事件里同步打开</b>，放到异步回调里会被浏览器当弹窗拦截。</li>
+  <li><b>覆盖而不是报错</b>：平台存储不认 <code>upsert</code>，同一 IP 再次生成报告会撞
+      <code>KEY_ALREADY_EXISTS</code>；客户端自动「先删后传」完成覆盖。</li>
+  <li><b>简报只传口径不传原文</b>：送模型的是聚合计数与脱敏来源，告警原文一条都不出网（详见 3.7）。</li>
+</ul>
+
+<table>
+  <thead><tr><th style="width:26%">验证项</th><th>实测结果（发布域名下，真实云环境）</th></tr></thead>
+  <tbody>
+    <tr><td>邮箱验证码登录</td><td>真实邮箱收码 → 校验通过 → 页面切到「已登录」，<code>getSession()</code> 返回 uid</td></tr>
+    <tr><td>归档写入 / 读回</td><td>写入 20 条，<code>owner_id</code> 由 <code>DEFAULT auth.uid()</code> 自动填充；刷新后计数 20，RLS 只返回本人行</td></tr>
+    <tr><td>证据上传 → 查看</td><td>九章报告上传后，新标签页按 HTML 渲染：9 个章节、7 张表格、正文 12,172 字，页面文本中无源码泄漏</td></tr>
+    <tr><td>下载 / 分享</td><td>另存为同名 <code>.html</code>（如 <code>report-2.html</code>）双击即开；签名直链 600 秒有效，仅点击时生成</td></tr>
+    <tr><td>AI 值班简报</td><td><code>deepseek-v4.1-flash</code> 流式返回，中文研判 412～594 字 / 750～941 tokens</td></tr>
+    <tr><td>未登录闸门</td><td>未登录时三个写操作区块显示「登录云端账号后显示」，不发任何写请求，也不降级到 localStorage</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <b>一个必须说清的边界</b>：证据报告里有「请求/响应证据」章节，正文会带原始攻击载荷样例。
+  当报告包含 <code>../</code>、<code>;id</code> 这类片段时，<b>上传会被云端 WAF 以 403 拒绝</b>（响应体只有一句
+  <code>error</code>）。这是平台侧的防护，不是接口写错；界面会把它翻译成明确提示并给出替代路径（先在本地「下载」留存）。
+  同理，批量归档时若个别行命中判据，客户端自动退化为<b>逐行提交</b>，只跳过命中行、不影响其余记录。
+</div>
+
 <!-- ============ 6 测试与部署 ============ -->
 <h1 class="ch"><span class="num">6</span>测试与部署</h1>
 
@@ -699,7 +780,7 @@ CVE 扩展、v6 规则包（入侵 742 / 研判 300 / 病毒 329）五种来源�
     <tr><td>聚合抑制可见性</td><td>未达阈值的 signal 可在 <code>/signals</code> 查到</td><td>抑制不等于丢弃，可回溯</td></tr>
     <tr><td>封禁语义化返回</td><td>已存在 / 白名单拒绝 / 成功 均有明确状态</td><td>前端据此给出准确提示，不做"静默失败"</td></tr>
     <tr><td>AI 降级链</td><td>API 不可用时来源标注为 local_rules / template</td><td>降级结果写入 <code>source</code> 与 <code>degraded</code></td></tr>
-    <tr><td>页面可访问性</td><td>10 个页面 + 全部 JS/CSS/图表库 200</td><td>共 83 项断言全部通过</td></tr>
+    <tr><td>页面可访问性</td><td>10 个页面 + 全部 JS/CSS/图表库 200</td><td>共 83 项断言全部通过；第 11 个页面 <code>cloud.html</code> 依赖云端登录态，不入自动断言，见 5.10 的人工实测记录</td></tr>
   </tbody>
 </table>
 
@@ -816,7 +897,7 @@ cp backend/.env.example .env                                        # 按需修�
     <tr><td>代码仓库</td><td>【GitHub / Gitee 地址】</td><td>Public 仓库，含完整提交历史与 README</td></tr>
     <tr><td>技术文档</td><td>本文档（PDF，≤30 页）</td><td>项目概述、需求、架构、AI 方案、实现、测试部署、总结</td></tr>
     <tr><td>演示视频</td><td>5~8 分钟，1080p，MP4</td><td>项目介绍 + 核心功能演示 + AI 亮点（脚本见仓库 <code>提交材料/演示视频脚本.md</code>）</td></tr>
-    <tr><td>在线演示</td><td>secops-traffic-guard.app.workbuddy.host</td><td>演示模式（仿真流量 + 真实检测链路），免登录，封禁走 DRY_RUN 只留痕</td></tr>
+    <tr><td>在线演示</td><td>secops-traffic-guard.app.workbuddy.host</td><td>演示模式（仿真流量 + 真实检测链路），检测相关页面免登录，封禁走 DRY_RUN 只留痕；「云端协同」页需登录云端账号（邮箱验证码），不登录时该页只显示说明，不影响其余页面</td></tr>
   </tbody>
 </table>
 

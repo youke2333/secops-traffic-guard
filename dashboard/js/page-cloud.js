@@ -276,6 +276,17 @@
     }
 
     function blockRow(item) {
+        /* 只同步结构化字段，不带封禁理由原文 —— 理由是后端拼的字符串，里面可能含
+           路径穿越、命令注入这类真实载荷样例（例如 GET /help/view?page=../../etc/passwd），
+           整条上报会触发云端 WAF。理由原文留在本地封禁记录里可查。 */
+        var flags = [
+            '后端 ' + (item.backend || '-'),
+            item.dry_run ? 'DRY-RUN 未真正下发' : '已实际下发',
+            item.hits ? '命中 ' + item.hits + ' 次' : null,
+            item.remaining_sec ? '剩余 ' + Math.max(0, Math.round(item.remaining_sec / 60)) + ' 分钟' : null,
+            item.operator ? '操作人 ' + item.operator : null
+        ].filter(Boolean);
+
         return {
             kind: 'block',
             title: ('封禁 ' + (item.ip || '-') + ' · '
@@ -285,9 +296,7 @@
             source_ip: item.ip || null,
             target: item.backend || null,
             score: null,
-            detail: safeText('原因 ' + (item.reason || '-')
-                + '；后端 ' + (item.backend || '-')
-                + (item.dry_run ? '（DRY-RUN 未真正下发）' : ''), 300),
+            detail: safeText(flags.join('；'), 300),
             observed_at: nowIso()
         };
     }
@@ -350,7 +359,9 @@
             button.disabled = true;
             msg('正在归档…', true);
             archivePayload(kind).then(function (rows) {
-                msg('已写入云端归档 ' + rows.length + ' 条', true);
+                msg('已写入云端归档 ' + rows.length + ' 条'
+                    + (rows.skipped ? '；另有 ' + rows.skipped + ' 条被站点安全防护拦截，已跳过'
+                        : ''), true);
                 return loadArchive();
             }).catch(function (error) {
                 msg(error.message);

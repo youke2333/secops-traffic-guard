@@ -227,12 +227,41 @@
         }).then(function (cloud) {
             /* owner_id 一律不传：表上 DEFAULT auth.uid() 由服务端填充，RLS 的
                WITH CHECK (owner_id = auth.uid()) 会拒绝任何伪造归属。 */
-            return cloud.database.from(ARCHIVE_TABLE).insert(rows).select();
-        }).then(function (result) {
-            if (result.error) {
-                throw fail(result.error, '归档写入失败');
+            function insertBatch(batch) {
+                return cloud.database.from(ARCHIVE_TABLE).insert(batch).select();
             }
-            return result.data || [];
+            function done(list, skipped) {
+                list.skipped = skipped || 0;
+                return list;
+            }
+            return Promise.resolve(insertBatch(rows)).then(function (result) {
+                if (!result.error) {
+                    return done(result.data || [], 0);
+                }
+                if (rows.length === 1) {
+                    throw fail(result.error, '归档写入失败');
+                }
+                /* 整批被拦时退到逐行提交：云端 WAF 对写请求体整体判据较敏感，
+                   个别行（例如理由里带路径穿越样例）被拦不应牵连其余记录。 */
+                var kept = [];
+                var skipped = 0;
+                return rows.reduce(function (chain, row) {
+                    return chain.then(function () {
+                        return Promise.resolve(insertBatch([row])).then(function (one) {
+                            if (one && !one.error) {
+                                kept = kept.concat(one.data || []);
+                            } else {
+                                skipped += 1;
+                            }
+                        }, function () { skipped += 1; });
+                    });
+                }, Promise.resolve()).then(function () {
+                    if (!kept.length) {
+                        throw fail(result.error, '归档写入失败');
+                    }
+                    return done(kept, skipped);
+                });
+            });
         });
     }
 
@@ -291,6 +320,22 @@
        这里退化成「先删后传」实现覆盖上传，避免同一个 IP 再次生成报告时传不上去。 */
     var EXISTS_RE = /ALREADY_EXISTS|already exists/i;
 
+    /* 证据报告含「请求/响应证据」章节，正文里可能带原始攻击载荷样例（../、;id、$() 等）。
+       这类内容会命中云端 WAF 的上传判据，返回 403 且响应体只有一句 "error"，看不出原因，
+       所以在这里翻译成人话，并给出可执行的替代路径。 */
+    function uploadError(error) {
+        var status = (error && (error.status || error.statusCode))
+            || (error && error.cause && error.cause.status) || 0;
+        var message = String((error && error.message) || '');
+        if (Number(status) === 403 || /\b403\b/.test(message)) {
+            return {
+                message: '云端拒绝了这次上传（HTTP 403）：报告正文含原始攻击载荷样例时会被站点 WAF 拦下。'
+                    + '可先点「下载」在本地留存，或上传不含证据片段的版本。'
+            };
+        }
+        return error;
+    }
+
     function uploadReport(name, text) {
         return requireSession().then(function (active) {
             if (!active) {
@@ -315,7 +360,7 @@
             });
         }).then(function (result) {
             if (result && result.error) {
-                throw fail(result.error, '上传失败');
+                throw fail(uploadError(result.error), '上传失败');
             }
             return result && result.data ? result.data : {};
         });
