@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>云端协同 - 智能流量安全检测与分析系统</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+    <style>
+        /* 本页专用（不并入全局样式，避免影响其它模块的既有排版） */
+        .cloud-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(4.2rem, 1fr));
+            gap: 0.14rem;
+        }
+        .cloud-box {
+            background: rgba(6, 30, 52, 0.72);
+            border: 1px solid rgba(85, 188, 212, 0.32);
+            border-radius: 0.08rem;
+            padding: 0.14rem 0.16rem;
+        }
+        .cloud-box h3 {
+            margin: 0 0 0.1rem;
+            font-size: 0.18rem;
+            color: #cfe9ff;
+            font-weight: 600;
+        }
+        .cloud-box p.tip {
+            margin: 0 0 0.12rem;
+            font-size: 0.14rem;
+            color: #8fb2cd;
+            line-height: 1.6;
+        }
+        .cloud-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.08rem;
+            margin-bottom: 0.1rem;
+        }
+        .cloud-row .label { font-size: 0.14rem; color: #8fb2cd; }
+        .cloud-row .input { width: 2.6rem; }
+        .cloud-row .input.code { width: 1.1rem; letter-spacing: 0.04rem; }
+        #cloudMsg { font-size: 0.14rem; color: #ffb4a2; min-height: 0.2rem; }
+        #cloudMsg.ok { color: #7fe3a1; }
+        .cloud-identity {
+            display: flex;
+            align-items: center;
+            gap: 0.12rem;
+            font-size: 0.15rem;
+            color: #cfe9ff;
+            flex-wrap: wrap;
+        }
+        .cloud-identity .uid {
+            font-family: "Consolas", monospace;
+            color: #7fd3ff;
+            background: rgba(0, 216, 255, 0.1);
+            border: 1px solid rgba(0, 216, 255, 0.3);
+            border-radius: 0.04rem;
+            padding: 0.02rem 0.08rem;
+        }
+        .cloud-brief {
+            min-height: 2.2rem;
+            max-height: 4.6rem;
+            overflow: auto;
+            padding: 0.14rem 0.16rem;
+            background: rgba(3, 20, 36, 0.7);
+            border: 1px solid rgba(85, 188, 212, 0.28);
+            border-radius: 0.06rem;
+            font-size: 0.15rem;
+            line-height: 1.85;
+            color: #d7ecff;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .cloud-brief .placeholder { color: #7d97ae; }
+        .tag-cloud {
+            display: inline-block;
+            font-size: 0.12rem;
+            color: #04121f;
+            background: #00d8ff;
+            border-radius: 0.1rem;
+            padding: 0.01rem 0.08rem;
+            margin-left: 0.06rem;
+        }
+        .cloud-file-actions { display: flex; gap: 0.06rem; flex-wrap: wrap; }
+    </style>
+</head>
+
+<body class="subpage">
+    <div class="sub-header">
+        <div class="sub-brand"><span class="logo">◈</span>智能流量安全检测与分析系统</div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sub-status">
+            <span class="badge" id="modeBadge">-</span>
+            <span class="badge" id="fwBadge">-</span>
+            <span class="badge" id="versionBadge">v-</span>
+            <span class="sub-clock" id="pageClock"></span>
+        </div>
+    </div>
+
+    <div class="page-body" data-tabs="off">
+        <!-- ================= 云端身份与总览 ================= -->
+        <section class="panel">
+            <div class="panel-head">
+                <h2>模块 3.7 云端协同 <span class="tag-cloud" id="linkTag">连接中</span></h2>
+                <div class="hint">
+                    本地检测链路不变；云端承载「跨设备可追溯的归档 / 可分享的证据文件 / 免密钥的模型研判」三件事，
+                    数据按云端账号隔离（RLS 强制 owner_id = auth.uid()）
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="kpi-strip">
+                    <div class="kpi-card"><p>云端连接</p><b id="kLink">连接中</b></div>
+                    <div class="kpi-card"><p>云端身份</p><b id="kUser">未登录</b></div>
+                    <div class="kpi-card"><p>我的云端归档</p><b id="kArchive">-</b></div>
+                    <div class="kpi-card"><p>云端证据文件</p><b id="kFiles">-</b></div>
+                    <div class="kpi-card"><p>可用模型</p><b id="kModel">-</b></div>
+                </div>
+
+                <div class="cloud-box" id="authBox">
+                    <h3>云端账号（邮箱验证码，免密码）</h3>
+                    <p class="tip">
+                        归档与证据文件按账号隔离，未登录时这三块功能只读不了也写不进去。
+                        验证码登录即注册：首次使用同一邮箱会自动建号，无需单独设置密码。
+                    </p>
+                    <div class="cloud-row" id="emailRow">
+                        <span class="label">邮箱</span>
+                        <input class="input" id="cloudEmail" type="email" autocomplete="email"
+                               placeholder="operator@example.com">
+                        <button class="btn" id="btnSendCode" type="button">发送验证码</button>
+                    </div>
+                    <div class="cloud-row" id="codeRow">
+                        <span class="label">验证码</span>
+                        <input class="input code" id="cloudCode" type="text" inputmode="numeric"
+                               maxlength="6" placeholder="6 位数字">
+                        <button class="btn" id="btnVerifyCode" type="button">登录 / 注册</button>
+                        <span class="label" id="codeHint"></span>
+                    </div>
+                </div>
+                <!-- 提示区必须放在 authBox 之外：登录成功后 authBox 会被身份卡片整体替换 -->
+                <div id="cloudMsg"></div>
+            </div>
+        </section>
+
+        <!-- ================= 告警与封禁归档 ================= -->
+        <section class="panel">
+            <div class="panel-head">
+                <h2>告警 / 封禁归档（云数据库）</h2>
+                <div class="toolbar">
+                    <button class="btn" id="btnArchiveAlerts" type="button">归档最近告警</button>
+                    <button class="btn" id="btnArchiveBlocks" type="button">归档当前封禁</button>
+                    <button class="btn" id="btnArchiveRefresh" type="button">刷新云端归档</button>
+                </div>
+            </div>
+            <div class="panel-body panel-scroll" style="max-height:3.6rem">
+                <div class="table-wrap">
+                    <table class="grid-table">
+                        <thead>
+                            <tr>
+                                <th>归档时间</th>
+                                <th>类型</th>
+                                <th>事件</th>
+                                <th>级别</th>
+                                <th>来源</th>
+                                <th>评分</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="archiveBody">
+                            <tr><td colspan="7" class="empty-row">请先登录云端账号</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 证据报告云端存储 ================= -->
+        <section class="panel">
+            <div class="panel-head">
+                <h2>证据报告云端存储（对象存储）</h2>
+                <div class="hint">
+                    本地「封禁管理」生成的九章安全事件报告可直接上传云端，生成 10 分钟有效的签名下载链接，
+                    便于协同处置时把证据发给同事或评审
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="cloud-grid">
+                    <div class="cloud-box">
+                        <h3>本地报告</h3>
+                        <p class="tip">由本地后端生成，保存在 <code>backend/</code> 的运行目录</p>
+                        <div class="table-wrap">
+                            <table class="grid-table">
+                                <thead>
+                                    <tr><th>报告</th><th>IP</th><th>操作</th></tr>
+                                </thead>
+                                <tbody id="localReportBody">
+                                    <tr><td colspan="3" class="empty-row">加载中…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="cloud-box">
+                        <h3>云端文件</h3>
+                        <p class="tip">保存在 <code>users/&lt;uid&gt;/reports/</code>，仅本人可读写</p>
+                        <div class="cloud-row">
+                            <button class="btn" id="btnFilesRefresh" type="button">刷新云端文件</button>
+                        </div>
+                        <div class="table-wrap">
+                            <table class="grid-table">
+                                <thead>
+                                    <tr><th>文件</th><th>大小</th><th>操作</th></tr>
+                                </thead>
+                                <tbody id="cloudFileBody">
+                                    <tr><td colspan="3" class="empty-row">请先登录云端账号</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= AI 值班简报 ================= -->
+        <section class="panel">
+            <div class="panel-head">
+                <h2>AI 值班简报（免密钥大模型）</h2>
+                <div class="toolbar">
+                    <span class="label">模型</span>
+                    <select class="input mid" id="modelSelect">
+                        <option value="">读取模型目录…</option>
+                    </select>
+                    <button class="btn" id="btnBrief" type="button">生成值班简报</button>
+                    <button class="btn" id="btnBriefStop" type="button" disabled>停止</button>
+                </div>
+            </div>
+            <div class="panel-body">
+                <div class="cloud-brief" id="briefOut">
+                    <span class="placeholder">点击「生成值班简报」，把当前大屏的态势指标、Top 告警与封禁记录
+                        交给云端模型做一次研判（IP 已脱敏，仅上传统计口径与事件摘要）。</span>
+                </div>
+                <div class="hint" id="briefMeta" style="margin-top:0.1rem">未生成</div>
+            </div>
+        </section>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/mock.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/cloud.js"></script>
+    <script src="js/page-cloud.js"></script>
+</body>
+
+</html>

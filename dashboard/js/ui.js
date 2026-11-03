@@ -18,7 +18,8 @@
         { id: 'anomaly', name: '异常端口', href: 'anomaly.html', desc: '端口基线与信号' },
         { id: 'rules', name: '规则管理', href: 'rules.html', desc: '规则包/引擎/档位' },
         { id: 'vuln', name: '漏洞提醒', href: 'vuln.html', desc: 'CVE 与修复建议' },
-        { id: 'asset', name: '资产管理', href: 'asset.html', desc: '台账与指纹' }
+        { id: 'asset', name: '资产管理', href: 'asset.html', desc: '台账与指纹' },
+        { id: 'cloud', name: '云端协同', href: 'cloud.html', desc: '云端归档/证据存储/AI 简报' }
     ];
 
     /* 网络安全标准配色（与等保 / 态势感知通行色标对齐）：

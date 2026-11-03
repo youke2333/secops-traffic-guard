@@ -12,7 +12,8 @@
 [9 Web 攻击知识库](#9-web-攻击检测知识库http-侧) · [10 规则来源层](#10-规则来源层内置知识库--开源规则库) ·
 [11 AI 技术方案](#11-ai-技术方案选型--集成--优化) · [12 评分与研判](#12-评分--直达--自适应阈值--ai-研判v2-新增能力一览) ·
 [13 创新点](#13-创新点说明) · [14 测试](#14-测试) · [15 文档](#15-文档) ·
-[16 页面导航与在线演示](#16-页面导航与在线演示) · [17 落地边界](#17-v6-落地范围与边界)
+[16 页面导航与在线演示](#16-页面导航与在线演示) · [17 落地边界](#17-v6-落地范围与边界) ·
+[18 云端协同](#18-云端协同workbuddy-云服务)
 
 ---
 
@@ -24,7 +25,7 @@ AI 只提供**可追溯的研判建议**，不接管处置判定 —— 避免�
 
 | 维度 | 实测数据（可现场复核） |
 | --- | --- |
-| 代码规模 | 后端 84 个 Python 模块（`backend/app`）、大屏 14 个 JS 模块 + 10 个页面 |
+| 代码规模 | 后端 84 个 Python 模块（`backend/app`）、大屏 15 个 JS 模块 + 11 个页面 |
 | 接口规模 | 83 个 REST / SSE 接口，OpenAPI 文档由 `/docs` 实时生成 |
 | 规则能力 | Web 攻击知识库 **171 条 / 21 大类**（对齐 OWASP Top 10）+ 入侵包 742 条 + 研判包 300 条 + 病毒特征 329 条；统一 `RulePlan` 预编译 436 条正则（实测构建 59.9 ms） |
 | 检测算法 | EWMA + 稳健 Z-score（MAD）统计基线、Isolation Forest 多维离群确认、滑动窗口加权聚合评分 |
@@ -629,6 +630,7 @@ node scripts/verify_layout.js
 | 规则管理 | `http://<host>:8000/rules.html` | 规则包、档位、匹配引擎状态 |
 | 漏洞提醒 | `http://<host>:8000/vuln.html` | CVE 与修复建议 |
 | 资产管理 | `http://<host>:8000/asset.html` | 台账与指纹 |
+| 云端协同 | `http://<host>:8000/cloud.html` | 云端账号、告警归档、证据文件、AI 值班简报（第 18 章） |
 | 兼容跳转 | `http://<host>:8000/response.html` | 自动跳转 `block.html` |
 | API 文档 | `http://<host>:8000/docs` | 全部 REST / SSE 接口 |
 
@@ -691,4 +693,81 @@ LLM_ENABLED=true         # 未配置 LLM_API_KEY 时按设计降级，界面标�
 
 > 详细操作步骤见 [`docs/部署操作手册.md`](docs/部署操作手册.md)；
 > 方案原文为《系统更新方案-v6》（设计文档，不代表全部已上线）。
+
+---
+
+## 18. 云端协同（WorkBuddy 云服务）
+
+### 18.1 定位：云端只做"协作"，不做"检测"
+
+检测、评分、封禁判定、AI 研判降级链全部留在本地后端，云端不参与任何判定。这样设计的原因是：
+把检测逻辑搬到云上，一来演示环境与生产环境的判定口径会分叉，二来告警原文里带攻击载荷，
+出网就会触发云端 WAF。因此云端只承载三件本地做不好的事 —— **跨设备可追溯的归档**、
+**可分享的证据文件**、**免密钥的模型调用**。
+
+| 云服务模块 | 在系统里的落点 | 代码位置 |
+| --- | --- | --- |
+| Database | `secops_archive` 表：告警 / 封禁处置归档，按操作员隔离 | `dashboard/js/cloud.js` → `archiveInsert/archiveList/archiveDelete` |
+| Auth | 云端账号（邮箱验证码，免密码），归档与文件的归属主体 | `dashboard/js/cloud.js` → `sendEmailCode/verifyEmailCode` |
+| Storage | 把「封禁管理」生成的九章证据报告上传云端，签发 10 分钟有效链接 | `dashboard/js/cloud.js` → `uploadReport/reportUrl` |
+| LLM | AI 值班简报：把大屏统计口径交给云端模型做中文研判，无需 `LLM_API_KEY` | `dashboard/js/cloud.js` → `generate` |
+
+页面为 `dashboard/cloud.html` + `dashboard/js/page-cloud.js`，导航第 9 项「3.7 云端协同」。
+SDK 走 **CDN 形态**（`@tencent-ai/workbuddy-cloud-sdk@dev` 的 IIFE 包），懒加载：
+本项目没有构建链，为了一个 SDK 引入 `package.json` 会破坏"双击 index.html 也能跑"的演示形态。
+客户端只用 `publicConfig`（资源 id / 发布域名 / OAuth Relay / publishableKey）初始化，
+真实环境凭证与模型密钥留在服务端，前端拿不到也不需要。
+
+### 18.2 数据模型与隔离
+
+```sql
+CREATE TABLE secops_archive (
+  id          BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  owner_id    TEXT        NOT NULL DEFAULT auth.uid(),   -- 服务端填充，前端永不传
+  owner_name  TEXT,
+  kind        TEXT        NOT NULL DEFAULT 'alert',      -- alert | block
+  title       TEXT        NOT NULL,
+  severity    TEXT,
+  category    TEXT,
+  source_ip   TEXT,
+  target      TEXT,
+  score       NUMERIC(6,2),
+  detail      TEXT,
+  observed_at TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+)
+```
+
+隔离由数据库而不是前端保证：`ENABLE ROW LEVEL SECURITY` + 四条策略
+（`SELECT/INSERT/UPDATE/DELETE ... USING (owner_id = auth.uid())`，`INSERT` 用 `WITH CHECK` 防伪造归属），
+并对 `authenticated, anon` 显式 `GRANT`（漏了 GRANT 会得到一个"长得像 RLS 失效"的 `42501`）。
+删除操作即使被 RLS 过滤掉也不会报错、只返回空数组，所以前端把"空数组"当成"没删掉"提示，
+不静默当成功。文件同理：`users/<uid>/reports/...`，只有本人可读写。
+
+### 18.3 三个安全约束（踩过才知道）
+
+| 约束 | 现象 | 处理 |
+| --- | --- | --- |
+| **WAF 拦请求体** | 告警原文含「命中片段：`<payload>`」，归档与简报的 POST 被云端 WAF 直接 403 拦截页，请求到不了数据库 | 归档只同步结构化字段（类型/级别/来源/目标/评分/规则），自由文本过 `safeText()`；简报只上传统计口径（类型分布、级别分布、脱敏来源），**不上传任何告警原文** |
+| **IP 脱敏** | 内网拓扑不应原文出网 | 送模型的来源 IP 统一掩成 `a.b.*.*`，与后端 AI 研判的脱敏口径一致；归档因需追溯处置，保留真实 IP 但仅本人可见 |
+| **短时链接** | 签名地址等于短时凭证 | 600 秒有效，只在点击时生成并直接打开，不落盘、不写日志 |
+
+### 18.4 实测记录（发布域名下）
+
+| 能力 | 验证方式 | 结果 |
+| --- | --- | --- |
+| 云端登录 | 真实邮箱收码 → 校验 | 收码成功，`getSession()` 返回 uid，页面切到「已登录」 |
+| 归档写入 | 归档最近 20 条告警 | `已写入云端归档 20 条`，`owner_id` 由 `DEFAULT auth.uid()` 自动填充，与当前账号一致 |
+| 归档读回 | 刷新云端归档 | 计数 20，列表按 `created_at` 倒序，RLS 只返回本人行 |
+| 文件往返 | 上传 → 列表 → 签名链接 → 删除 | 上传返回 `fullPath`；列表 1 个对象（`text/html`，98 B）；签名链接 HTTP 200 且内容匹配；删除后剩余 0 |
+| 模型调用 | 生成值班简报 | `deepseek-v4.1-flash` 流式返回，约 590 字中文研判，941 tokens |
+| 未登录闸门 | 未登录时打开页面 | 归档/文件两块显示「登录云端账号后显示」，不发起任何写请求，也不降级到 localStorage |
+
+### 18.5 降级与关闭
+
+* **云端不可用**（SDK 的 CDN 不可达、未登录、额度用尽、WAF 拦截）→ 每一块各自显示明确原因，
+  其余模块照常工作；**不会**把本地 localStorage 伪装成云端存储。
+* **关闭云服务**：云环境没有前端关停接口，需在 **设置 → 数据管理 → 应用** 中管理该应用
+  （删除会一并释放云服务且不可恢复）；只下线站点则保留环境、链接失效。
+* 云端不可达时系统功能不受影响 —— 第 1～12 章的检测链路完全不依赖云。
 
