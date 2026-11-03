@@ -129,6 +129,9 @@
             }
         }
         var raw = String(error.message || '');
+        if (/ALREADY_EXISTS|already exists/i.test(raw)) {
+            return '云端已存在同名文件，请先删除或换个文件名';
+        }
         /* 云端网关前面有 Web 应用防火墙：请求体里若带明显攻击特征（例如告警原文里的
            SQL 注入片段），会直接返回 403 的拦截页 HTML，而不是 JSON 错误。 */
         if (/WAF|<html|<!DOCTYPE/i.test(raw)) {
@@ -284,17 +287,30 @@
         return client.storage.userPath(uid, REPORT_DIR + '/' + name);
     }
 
+    /* 平台不认 upsert：同名对象会直接报 KEY_ALREADY_EXISTS。
+       这里退化成「先删后传」实现覆盖上传，避免同一个 IP 再次生成报告时传不上去。 */
+    var EXISTS_RE = /ALREADY_EXISTS|already exists/i;
+
     function uploadReport(name, text) {
         return requireSession().then(function (active) {
             if (!active) {
                 throw new Error('请先登录云端账号，云端文件按账号隔离');
             }
             return init().then(function () {
+                var path = reportPath(active, name);
                 var body = new Blob([text], { type: 'text/html;charset=utf-8' });
-                return client.storage.upload(reportPath(active, name), body, {
-                    contentType: 'text/html;charset=utf-8',
-                    upsert: true,
-                    metadata: { purpose: 'secops-evidence-report' }
+                function put() {
+                    return client.storage.upload(path, body, {
+                        contentType: 'text/html;charset=utf-8',
+                        metadata: { purpose: 'secops-evidence-report' }
+                    });
+                }
+                return Promise.resolve(put()).then(function (result) {
+                    var err = result && result.error;
+                    if (!err || !EXISTS_RE.test(String(err.code || err.message || ''))) {
+                        return result;
+                    }
+                    return Promise.resolve(client.storage.remove([path])).then(put);
                 });
             });
         }).then(function (result) {
@@ -369,6 +385,79 @@
                 }
                 return URL.createObjectURL(real);
             });
+        });
+    }
+
+    /* 取回文件的文本内容。
+       签名直链一律以 text/plain 下发（平台防止共享域名上的存储型 XSS），
+       浏览器只会把 HTML 显示成源码，所以「查看」必须由前端取回内容再按 HTML 渲染。 */
+    function normalizeDownload(result) {
+        if (result && result.error) {
+            throw fail(result.error, '读取云端文件失败');
+        }
+        var body = (result && result.data) || result;
+        if (body instanceof Blob) {
+            return body;
+        }
+        if (body && body.data instanceof Blob) {
+            return body.data;
+        }
+        if (body && typeof body.text === 'function') {
+            return body;
+        }
+        throw new Error('云端文件内容格式无法识别');
+    }
+
+    function reportText(path) {
+        return requireSession().then(function (active) {
+            if (!active) {
+                throw new Error('请先登录云端账号');
+            }
+            return init().then(function () {
+                return client.storage.download(path);
+            });
+        }).then(normalizeDownload).then(function (blob) {
+            return blob.text();
+        });
+    }
+
+    /* 查看：把取回的内容按 HTML 写进调用方同步打开的窗口。
+       窗口必须由点击事件同步打开，异步回调里再 window.open 会被弹窗拦截。 */
+    function viewReport(path, win) {
+        return reportText(path).then(function (text) {
+            if (!win || win.closed) {
+                throw new Error('预览窗口已关闭，请重试');
+            }
+            win.document.open();
+            win.document.write(text);
+            win.document.close();
+            return true;
+        });
+    }
+
+    /* 下载：直接落盘成 .html，双击即可在本地打开。
+       文件名只取末段 —— 云端对象键是 users/<uid>/reports/report-1.html，
+       整段塞进 download 属性会被浏览器替换成下划线，用户拿到一个怪名字。 */
+    function fileNameOf(filename, path) {
+        var raw = String(filename || path || '').split(/[\\/]/).pop();
+        raw = raw.replace(/[<>:"|?*\u0000-\u001f]/g, '_').trim();
+        if (!raw) {
+            raw = 'report.html';
+        }
+        return /\.html?$/i.test(raw) ? raw : raw + '.html';
+    }
+
+    function downloadReport(path, filename) {
+        return reportText(path).then(function (text) {
+            var url = URL.createObjectURL(new Blob([text], { type: 'text/html;charset=utf-8' }));
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = fileNameOf(filename, path);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+            return link.download;
         });
     }
 
@@ -500,6 +589,9 @@
         uploadReport: uploadReport,
         listReports: listReports,
         reportUrl: reportUrl,
+        reportText: reportText,
+        viewReport: viewReport,
+        downloadReport: downloadReport,
         removeReport: removeReport,
         /* 大模型 */
         listModels: listModels,

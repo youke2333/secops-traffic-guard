@@ -52,6 +52,33 @@
         return (value / 1024 / 1024).toFixed(2) + ' MB';
     }
 
+    /* 复制到剪贴板。navigator.clipboard 在非聚焦窗口 / 非安全上下文会抛错，
+       退到隐藏 textarea + execCommand，仍失败则把内容直接展示给用户手动复制。 */
+    function copyText(text) {
+        function legacy() {
+            var area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', 'readonly');
+            area.style.position = 'fixed';
+            area.style.top = '-1000px';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            var ok = false;
+            try { ok = document.execCommand('copy'); } catch (ignore) { ok = false; }
+            document.body.removeChild(area);
+            return ok;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text).then(function () {
+                return true;
+            }).catch(function () {
+                return legacy();
+            });
+        }
+        return Promise.resolve(legacy());
+    }
+
     /* ==================== 一、云端身份 ==================== */
     function setLink(text, ok) {
         var kpi = el('kLink');
@@ -406,14 +433,18 @@
         }
         body.innerHTML = result.items.map(function (item) {
             var path = item.path || item.key || item.name || '';
-            var name = item.name || String(path).split('/').pop();
+            /* 列表接口回传的 name 是完整对象键，展示与另存都只要末段文件名 */
+            var name = String(path).split('/').pop() || 'report.html';
             var size = item.size || item.contentLength
                 || (item.metadata && (item.metadata.size || item.metadata.contentLength)) || 0;
             return '<tr>'
                 + '<td title="' + esc(path) + '">' + esc(name) + '</td>'
                 + '<td>' + bytes(size) + '</td>'
                 + '<td><div class="cloud-file-actions">'
-                + '<button class="btn-mini" data-open="' + esc(path) + '" type="button">下载链接</button>'
+                + '<button class="btn-mini" data-view="' + esc(path) + '" type="button">查看</button>'
+                + '<button class="btn-mini" data-download="' + esc(path) + '"'
+                + ' data-name="' + esc(name) + '" type="button">下载</button>'
+                + '<button class="btn-mini" data-link="' + esc(path) + '" type="button">复制链接</button>'
                 + '<button class="btn-mini" data-remove="' + esc(path) + '" type="button">删除</button>'
                 + '</div></td></tr>';
         }).join('');
@@ -459,13 +490,62 @@
             });
         });
 
-        UI.delegate('#cloudFileBody', '[data-open]', 'click', function (event, target) {
-            var path = target.getAttribute('data-open');
+        /* 查看：签名直链以 text/plain 下发（平台安全策略），直接打开只会看到源码，
+           所以取回文本后按 HTML 写入新窗口。窗口必须在点击的同一轮事件里同步打开，
+           否则异步回调里的 window.open 会被浏览器当弹窗拦截。 */
+        UI.delegate('#cloudFileBody', '[data-view]', 'click', function (event, target) {
+            var path = target.getAttribute('data-view');
+            var win = window.open('', '_blank');
+            if (!win) {
+                msg('浏览器拦截了新窗口，请点「下载」后在本地打开');
+                return;
+            }
+            try {
+                win.document.write('<!DOCTYPE html><meta charset="utf-8">'
+                    + '<title>正在读取云端报告…</title>'
+                    + '<p style="font:15px/1.8 -apple-system,Segoe UI,sans-serif;'
+                    + 'padding:28px;color:#334">正在从云端读取报告，请稍候…</p>');
+            } catch (ignore) { /* 占位页写失败不影响后续渲染 */ }
+
+            target.disabled = true;
+            msg('正在读取云端文件…', true);
+            SecCloud.viewReport(path, win).then(function () {
+                msg('已在新标签页打开报告', true);
+            }).catch(function (error) {
+                msg(error.message);
+                try { win.close(); } catch (ignore) { /* 用户可能已手动关闭 */ }
+            }).finally(function () {
+                target.disabled = false;
+            });
+        });
+
+        UI.delegate('#cloudFileBody', '[data-download]', 'click', function (event, target) {
+            var path = target.getAttribute('data-download');
+            var name = target.getAttribute('data-name') || 'report.html';
+            target.disabled = true;
+            SecCloud.downloadReport(path, name).then(function (saved) {
+                msg('已保存到本地：' + saved, true);
+            }).catch(function (error) {
+                msg(error.message);
+            }).finally(function () {
+                target.disabled = false;
+            });
+        });
+
+        /* 签名直链是 10 分钟有效的短时凭证，用于协同处置或 curl 取件 */
+        UI.delegate('#cloudFileBody', '[data-link]', 'click', function (event, target) {
+            var path = target.getAttribute('data-link');
             target.disabled = true;
             SecCloud.reportUrl(path).then(function (url) {
-                /* 签名链接 10 分钟有效，按短时凭证处理：只用于本次打开，不落盘、不打日志 */
-                window.open(url, '_blank', 'noopener');
-                msg('已生成 10 分钟有效的下载链接', true);
+                return copyText(url).then(function (ok) {
+                    if (ok) {
+                        msg('签名链接已复制（10 分钟内有效；浏览器直接打开会显示源码，建议配合「下载」使用）', true);
+                        return;
+                    }
+                    /* 复制被浏览器拒绝时退到弹窗，让用户手动取走 */
+                    window.prompt('复制下面的签名链接（10 分钟内有效）', url);
+                    msg('签名链接已生成，可从弹窗中复制', true);
+                });
             }).catch(function (error) {
                 msg(error.message);
             }).finally(function () {

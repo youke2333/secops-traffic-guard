@@ -180,8 +180,8 @@
             <div class="panel-head">
                 <h2>证据报告云端存储（对象存储）</h2>
                 <div class="hint">
-                    本地「封禁管理」生成的九章安全事件报告可直接上传云端，生成 10 分钟有效的签名下载链接，
-                    便于协同处置时把证据发给同事或评审
+                    本地「封禁管理」生成的九章安全事件报告可直接上传云端，支持在线查看、下载成 .html、
+                    复制 10 分钟有效的签名链接，便于协同处置时把证据发给同事或评审
                 </div>
             </div>
             <div class="panel-body">
@@ -202,7 +202,9 @@
                     </div>
                     <div class="cloud-box">
                         <h3>云端文件</h3>
-                        <p class="tip">保存在 <code>users/&lt;uid&gt;/reports/</code>，仅本人可读写</p>
+                        <p class="tip">保存在 <code>users/&lt;uid&gt;/reports/</code>，仅本人可读写。
+                            签名直链一律以纯文本下发（平台防共享域名上的存储型 XSS），浏览器直接打开只会看到源码，
+                            所以「查看」是取回内容后在新标签页按 HTML 渲染，「下载」落盘成 .html 双击即开。</p>
                         <div class="cloud-row">
                             <button class="btn" id="btnFilesRefresh" type="button">刷新云端文件</button>
                         </div>
